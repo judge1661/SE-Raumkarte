@@ -721,6 +721,44 @@
     95% { opacity: 0.3; }
     100% { top: 100vh; opacity: 0; }
   }
+
+  /* ── AUTO-SKALIERUNG ─────────────────────────────────────────────────────── */
+  @media (max-width: 900px) {
+    #header h1  { font-size: 0.75rem; letter-spacing: 2px; }
+    #header .sub { display: none; }
+    #mode-tabs   { margin-left: 8px; }
+    .mode-tab    { font-size: 0.52rem; padding: 4px 8px; letter-spacing: 1px; }
+    #info-panel  { width: 240px; right: 8px; top: 60px; }
+    #legend      { min-width: 160px; padding: 10px; bottom: 60px; }
+    #filter-panel { font-size: 0.62rem; }
+    #add-panel   { font-size: 0.7rem; }
+    #players-overlay { width: 200px; }
+  }
+  @media (max-width: 600px) {
+    #header      { padding: 8px 12px; gap: 8px; }
+    #header h1   { font-size: 0.65rem; letter-spacing: 1px; }
+    #mode-tabs   { margin-left: 4px; }
+    .mode-tab    { font-size: 0.48rem; padding: 3px 6px; }
+    #info-panel  { width: 95vw; right: 2.5vw; top: 56px; font-size: 0.75rem; }
+    #legend      { left: 8px; bottom: 70px; min-width: 140px; font-size: 0.6rem; }
+    #filter-panel { font-size: 0.58rem; }
+    #players-overlay { width: 180px; left: 8px !important; right: auto !important; }
+    #add-panel   { font-size: 0.65rem; }
+    #conn-status { display: none; }
+  }
+  @media (max-width: 400px) {
+    #header h1   { font-size: 0.55rem; }
+    .mode-tab    { display: none; }
+    #header #mode-tabs button:first-child,
+    #header #mode-tabs button:last-child { display: block; }
+  }
+  /* ── SCALING: Panels never overflow screen ─────────────────────────────── */
+  #info-panel  { max-height: calc(100vh - 80px); overflow-y: auto; }
+  #legend      { max-height: calc(100vh - 120px); overflow-y: auto; }
+  #filter-panel { max-height: calc(100vh - 120px); overflow-y: auto; }
+  #players-overlay { max-height: calc(100vh - 80px); overflow-y: auto; }
+  #add-panel   { max-height: 60vh; overflow-y: auto; }
+
 </style>
 </head>
 <body>
@@ -910,6 +948,52 @@
 const APP_VERSION = '2.3';
 const CFG_KEY     = 'se_raumkarte_v23';
 let cfg = { token:'', gistId:'', player:'Spieler' };
+
+// ─── SPIELER-TRACKING ────────────────────────────────────────────────────────
+let playersSeen = {};
+
+function updatePlayerSeen(savedBy, pointCount) {
+  if (!savedBy || savedBy === 'Spieler') return;
+  playersSeen[savedBy] = { lastSeen: new Date().toISOString(), points: pointCount };
+  renderPlayersPanel();
+}
+
+function renderPlayersPanel() {
+  const el = document.getElementById('players-list');
+  if (!el) return;
+  const names = Object.keys(playersSeen);
+  if (!names.length) {
+    el.innerHTML = '<div style="color:rgba(168,216,234,0.3);font-size:0.65rem;padding:6px 0">Noch keine Mitspieler aktiv</div>';
+    return;
+  }
+  const now = new Date();
+  el.innerHTML = names.map(name => {
+    const d = playersSeen[name];
+    const mins = Math.round((now - new Date(d.lastSeen)) / 60000);
+    const isMe = (name === cfg.player);
+    const col = isMe ? '#7fff7f' : '#00c8ff';
+    const ago = mins < 1 ? 'gerade eben' : mins < 60 ? ('vor '+mins+'min') : ('vor '+Math.round(mins/60)+'h');
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(0,200,255,0.07)">'
+      + '<span style="color:'+col+';font-size:0.68rem">👤 '+name+(isMe?' <span style=\"font-size:0.55rem;opacity:0.6\">(ich)</span>':'')+'</span>'
+      + '<span style="color:rgba(168,216,234,0.35);font-size:0.58rem">'+ago+'</span>'
+      + '</div>'
+      + '<div style="font-size:0.58rem;color:rgba(168,216,234,0.25);padding-bottom:4px">'+d.points+' Punkte</div>';
+  }).join('');
+}
+
+let playersPanelOpen = false;
+function togglePlayersPanel() {
+  playersPanelOpen = !playersPanelOpen;
+  const el = document.getElementById('players-overlay');
+  if (el) el.style.display = playersPanelOpen ? 'block' : 'none';
+  if (playersPanelOpen) renderPlayersPanel();
+}
+function closePlayersPanel() {
+  playersPanelOpen = false;
+  const el = document.getElementById('players-overlay');
+  if (el) el.style.display = 'none';
+}
+
 
 let saveTimer = null;
 let saveStatus = 'idle';
@@ -2466,50 +2550,7 @@ function importFromFile(input) {
   reader.readAsText(file);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-//  SPIELER-TRACKING  —  wer hat wann gespeichert
-// ═══════════════════════════════════════════════════════════════════════════════
-let playersSeen = {};  // { name: { lastSeen: ISO, points: count } }
 
-function updatePlayerSeen(savedBy, pointCount) {
-  if (!savedBy || savedBy==='Spieler') return;
-  playersSeen[savedBy] = { lastSeen: new Date().toISOString(), points: pointCount };
-  renderPlayersPanel();
-}
-
-function renderPlayersPanel() {
-  const el=document.getElementById('players-list');
-  if (!el) return;
-  const names=Object.keys(playersSeen);
-  if (!names.length) {
-    el.innerHTML='<div style="color:rgba(168,216,234,0.3)">Noch keine Mitspieler erkannt</div>';
-    return;
-  }
-  const now=new Date();
-  el.innerHTML=names.map(name=>{
-    const d=playersSeen[name];
-    const mins=Math.round((now-new Date(d.lastSeen))/60000);
-    const isMe=(name===cfg.player);
-    const col=isMe?'#7fff7f':'#00c8ff';
-    const ago=mins<1?'gerade eben':mins<60?`vor ${mins}min`:`vor ${Math.round(mins/60)}h`;
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid rgba(0,200,255,0.06)">
-      <span style="color:${col}">👤 ${name}${isMe?' (ich)':''}</span>
-      <span style="color:rgba(168,216,234,0.35);font-size:0.6rem">${ago}</span>
-    </div>
-    <div style="font-size:0.58rem;color:rgba(168,216,234,0.25);margin-bottom:4px">${d.points} Punkte</div>`;
-  }).join('');
-}
-
-let playersPanelOpen=false;
-function togglePlayersPanel() {
-  playersPanelOpen=!playersPanelOpen;
-  document.getElementById('players-overlay').style.display=playersPanelOpen?'block':'none';
-  if(playersPanelOpen) { renderPlayersPanel(); }
-}
-function closePlayersPanel() {
-  playersPanelOpen=false;
-  document.getElementById('players-overlay').style.display='none';
-}
 
 // ── WIZARD LOGIC ──────────────────────────────────────────────────────────────
 function openSetupWizard() {
@@ -2719,7 +2760,7 @@ document.getElementById('wizard-overlay').addEventListener('click',e=>{
 
 
 <!-- SPIELER-PANEL OVERLAY -->
-<div id="players-overlay" style="display:none;position:fixed;top:55px;right:10px;z-index:1500;background:rgba(3,12,25,0.96);border:1px solid rgba(0,200,255,0.25);border-radius:5px;padding:16px;width:240px;box-shadow:0 0 40px rgba(0,200,255,0.08);font-family:'Share Tech Mono',monospace">
+<div id="players-overlay" style="display:none;position:fixed;top:55px;left:10px;z-index:1500;background:rgba(3,12,25,0.96);border:1px solid rgba(0,200,255,0.25);border-radius:5px;padding:16px;width:250px;box-shadow:0 0 40px rgba(0,200,255,0.08);font-family:'Share Tech Mono',monospace">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid rgba(0,200,255,0.1);padding-bottom:8px">
     <div style="font-size:0.7rem;letter-spacing:2px;color:#00c8ff">// VERBUNDENE SPIELER</div>
     <button onclick="closePlayersPanel()" style="background:none;border:none;color:rgba(168,216,234,0.3);cursor:pointer;font-size:0.9rem">✕</button>
