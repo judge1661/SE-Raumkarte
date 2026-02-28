@@ -737,7 +737,9 @@
     <button class="mode-tab active" id="tab-2d" onclick="setMode('2d')">2D KARTE</button>
     <button class="mode-tab" id="tab-3d" onclick="setMode('3d')">3D RAUM</button>
   </div>
-  <div id="save-status" style="font-size:0.62rem;letter-spacing:1px;transition:color 0.3s;min-width:220px;text-align:center;"></div>
+  <div id="save-status" style="font-size:0.62rem;letter-spacing:1px;transition:color 0.3s;min-width:180px;text-align:center;"></div>
+  <div id="conn-status" style="font-size:0.58rem;letter-spacing:1px;color:#ff4444;white-space:nowrap">🔴 GETRENNT</div>
+  <span id="app-version" style="font-size:0.52rem;color:rgba(168,216,234,0.22);letter-spacing:2px">v2.2</span>
   <button onclick="openSetupWizard()" title="Multiplayer Einrichtung" style="background:rgba(0,200,255,0.07);border:1px solid rgba(0,200,255,0.2);color:rgba(0,200,255,0.6);font-size:1rem;width:32px;height:32px;border-radius:3px;cursor:pointer;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.color='#00c8ff';this.style.background='rgba(0,200,255,0.15)'" onmouseout="this.style.color='rgba(0,200,255,0.6)';this.style.background='rgba(0,200,255,0.07)'">⚙</button>
   <div id="coords-display">CURSOR: —</div>
 </div>
@@ -799,18 +801,15 @@
       <textarea id="info-comment"
         placeholder="Notiz zu diesem Punkt..."
         oninput="markCommentDirty()"
-        style="width:100%;height:56px;background:rgba(0,200,255,0.04);border:1px solid rgba(0,200,255,0.15);border-radius:3px;color:#a8d8ea;font-family:'Share Tech Mono',monospace;font-size:0.68rem;padding:6px 8px;resize:none;outline:none;line-height:1.5;transition:border-color 0.2s;"
+        style="width:100%;height:54px;background:rgba(0,200,255,0.04);border:1px solid rgba(0,200,255,0.15);border-radius:3px;color:#a8d8ea;font-family:'Share Tech Mono',monospace;font-size:0.68rem;padding:6px 8px;resize:none;outline:none;line-height:1.5"
         onfocus="this.style.borderColor='rgba(0,200,255,0.4)'"
-        onblur="this.style.borderColor='rgba(0,200,255,0.15)'"
-      ></textarea>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
-        <div id="comment-status" style="font-size:0.6rem;color:rgba(127,255,127,0.7);letter-spacing:1px"></div>
-        <button id="btn-save-comment" onclick="saveComment()"
-          style="background:rgba(0,200,255,0.1);border:1px solid rgba(0,200,255,0.3);color:#00c8ff;font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:1px;padding:3px 10px;border-radius:3px;cursor:pointer;opacity:0.4;transition:all 0.2s"
-        >💾 SPEICHERN</button>
+        onblur="this.style.borderColor='rgba(0,200,255,0.15)'"></textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px">
+        <div id="comment-status" style="font-size:0.6rem;color:#7fff7f;letter-spacing:1px"></div>
+        <button id="btn-save-comment" onclick="saveComment()" style="background:rgba(0,200,255,0.08);border:1px solid rgba(0,200,255,0.25);color:rgba(0,200,255,0.5);font-family:'Share Tech Mono',monospace;font-size:0.58rem;letter-spacing:1px;padding:3px 9px;border-radius:3px;cursor:pointer">💾 SPEICHERN</button>
       </div>
     </div>
-    <div style="display:flex;gap:6px;margin-top:4px">
+    <div style="display:flex;gap:6px;margin-top:6px">
       <button id="btn-erschoepft" class="btn-erschoepft" onclick="toggleErschoepft()">⊘ ERSCHÖPFT</button>
       <button class="btn-export-single" style="flex:1;margin-top:0" onclick="exportSingle()">📋 KOPIEREN</button>
     </div>
@@ -899,97 +898,105 @@
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
-//  GITHUB GIST MULTIPLAYER SPEICHER
+//  GITHUB GIST MULTIPLAYER SPEICHER  –  v2.2
 // ═══════════════════════════════════════════════════════════════════════════
-const CFG_KEY = 'se_raumkarte_config';
-let gistConfig = { token: '', gistId: '', filename: 'se_gps_data.json' };
+const APP_VERSION  = '2.2';
+const CFG_KEY      = 'se_raumkarte_cfg_v2';
+let gistCfg = { token:'', gistId:'', playerName:'Spieler' };
 let saveDebounceTimer = null;
-let saveStatus = 'idle';
-let lastEtag = null;
-let autoSyncTimer = null;
+let saveStatus     = 'idle';
+let autoSyncTimer  = null;
+let lastSyncHash   = '';
 
-// ── Config laden/speichern (bleibt lokal im Browser) ────────────────────────
 function loadConfig() {
-  try {
-    const raw = localStorage.getItem(CFG_KEY);
-    if (raw) gistConfig = { ...gistConfig, ...JSON.parse(raw) };
-  } catch(e) {}
+  try { const r=localStorage.getItem(CFG_KEY); if(r) gistCfg={...gistCfg,...JSON.parse(r)}; } catch(e){}
 }
 function saveConfig() {
-  try { localStorage.setItem(CFG_KEY, JSON.stringify(gistConfig)); } catch(e) {}
+  try { localStorage.setItem(CFG_KEY, JSON.stringify(gistCfg)); } catch(e){}
 }
-function isConfigured() { return !!(gistConfig.token && gistConfig.gistId); }
+function isConfigured() { return !!(gistCfg.token && gistCfg.gistId); }
 
-// ── Save Status UI ───────────────────────────────────────────────────────────
 function setSaveStatus(status, msg) {
   saveStatus = status;
   const el = document.getElementById('save-status');
   if (!el) return;
   const icons = { idle:'', saving:'⟳ SYNC...', saved:'✓ GESPEICHERT', error:'⚠ FEHLER', syncing:'⟳ LADE...' };
-  const cols  = { idle:'transparent', saving:'rgba(0,200,255,0.5)', saved:'#7fff7f', error:'#ff4444', syncing:'rgba(0,200,255,0.5)' };
+  const cols  = { idle:'rgba(168,216,234,0.3)', saving:'#00c8ff', saved:'#7fff7f', error:'#ff6644', syncing:'#00c8ff' };
   el.textContent = msg || icons[status];
   el.style.color = cols[status];
-  if (status === 'saved') setTimeout(() => { el.textContent=''; saveStatus='idle'; }, 3000);
+  if (status === 'saved') setTimeout(() => { el.textContent=''; saveStatus='idle'; }, 4000);
 }
 
-// ── Daten auf Gist speichern ─────────────────────────────────────────────────
+function setConnectionStatus(ok, msg) {
+  const el = document.getElementById('conn-status');
+  if (!el) return;
+  if (ok) { el.textContent='🟢 VERBUNDEN'; el.style.color='#7fff7f'; }
+  else    { el.textContent='🔴 '+(msg||'GETRENNT'); el.style.color='#ff4444'; }
+}
+
+// ── SPEICHERN ─────────────────────────────────────────────────────────────────
 function triggerSave() {
   clearTimeout(saveDebounceTimer);
   setSaveStatus('saving');
-  saveDebounceTimer = setTimeout(saveToGist, 800);
+  saveDebounceTimer = setTimeout(saveToGist, 900);
 }
 
 async function saveToGist() {
-  if (!isConfigured()) { setSaveStatus('error', '⚠ NICHT KONFIGURIERT'); return; }
+  if (!isConfigured()) { setSaveStatus('error','⚠ NICHT KONFIGURIERT'); return; }
   const payload = {
-    version: 1,
+    version: 2, appVersion: APP_VERSION,
     savedAt: new Date().toISOString(),
-    savedBy: gistConfig.playerName || 'Spieler',
+    savedBy: gistCfg.playerName || 'Spieler',
     points: points.map(p => ({
-      name: p.name, x: p.x, y: p.y, z: p.z,
-      type: p.type, originalType: p.originalType || null,
-      comment: p.comment || null
+      name:p.name, x:p.x, y:p.y, z:p.z,
+      type:p.type, originalType:p.originalType||null, comment:p.comment||null
     }))
   };
   try {
-    const res = await fetch(`https://api.github.com/gists/${gistConfig.gistId}`, {
+    const res = await fetch('https://api.github.com/gists/' + gistCfg.gistId, {
       method: 'PATCH',
       headers: {
-        'Authorization': `token ${gistConfig.token}`,
+        'Authorization': 'Bearer ' + gistCfg.token,
         'Content-Type': 'application/json',
-        'Accept': 'application/vnd.github.v3+json'
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28'
       },
-      body: JSON.stringify({ files: { [gistConfig.filename]: { content: JSON.stringify(payload, null, 2) } } })
+      body: JSON.stringify({ files: { 'se_gps_data.json': { content: JSON.stringify(payload, null, 2) } } })
     });
-    if (!res.ok) { const e = await res.json(); throw new Error(e.message || res.status); }
+    if (!res.ok) { const e=await res.json(); throw new Error(e.message||res.status); }
     const t = new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    setSaveStatus('saved', `✓ SYNC (${payload.points.length} Punkte, ${t})`);
+    setSaveStatus('saved', '✓ GESPEICHERT (' + payload.points.length + ' Pkt, ' + t + ')');
+    setConnectionStatus(true);
+    lastSyncHash = makeHash(points);
   } catch(e) {
-    setSaveStatus('error', `⚠ ${e.message}`);
+    setSaveStatus('error','⚠ '+e.message);
+    setConnectionStatus(false, e.message);
   }
 }
 
-// ── Daten von Gist laden ─────────────────────────────────────────────────────
+// ── LADEN ─────────────────────────────────────────────────────────────────────
 async function loadFromGist() {
   if (!isConfigured()) return null;
   try {
-    // Immer die API verwenden (nicht raw_url) um frische Daten zu bekommen
-    const res = await fetch(`https://api.github.com/gists/${gistConfig.gistId}?t=${Date.now()}`, {
+    const res = await fetch('https://api.github.com/gists/' + gistCfg.gistId, {
       headers: {
-        'Authorization': `token ${gistConfig.token}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache'
+        'Authorization': 'Bearer ' + gistCfg.token,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'Cache-Control': 'no-cache'
       }
     });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) { const e=await res.json(); throw new Error(e.message||res.status); }
     const gist = await res.json();
-    const file = gist.files[gistConfig.filename];
-    if (!file) throw new Error(`Datei "${gistConfig.filename}" nicht im Gist gefunden`);
-    // Inhalt direkt aus API-Antwort — kein separater fetch nötig
-    const raw = file.content;
-    if (!raw) throw new Error('Gist-Inhalt leer');
+    const file = gist.files['se_gps_data.json'];
+    if (!file) { setConnectionStatus(true); return null; }
+    let raw = file.content;
+    if (file.truncated) {
+      const r2 = await fetch(file.raw_url, { headers:{'Authorization':'Bearer '+gistCfg.token} });
+      raw = await r2.text();
+    }
     const data = JSON.parse(raw);
+    setConnectionStatus(true);
     if (!data.points || data.points.length === 0) return null;
     return data.points.map(p => ({
       name: p.name,
@@ -999,32 +1006,51 @@ async function loadFromGist() {
       comment: p.comment || undefined
     }));
   } catch(e) {
-    console.warn('Gist load error:', e);
-    setSaveStatus('error', `⚠ LADEN FEHLGESCHLAGEN: ${e.message}`);
+    setConnectionStatus(false, e.message);
+    setSaveStatus('error','⚠ LADEN: '+e.message);
     return null;
   }
 }
 
-// ── Auto-Sync: alle 30s neu laden (andere Spieler sehen Änderungen) ──────────
+// ── VERBINDUNGSTEST ───────────────────────────────────────────────────────────
+async function testGistConnection() {
+  if (!isConfigured()) { setConnectionStatus(false,'Nicht konfiguriert'); return false; }
+  setConnectionStatus(false,'⟳ TESTE...');
+  try {
+    const res = await fetch('https://api.github.com/gists/' + gistCfg.gistId, {
+      headers: {
+        'Authorization': 'Bearer ' + gistCfg.token,
+        'Accept': 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28'
+      }
+    });
+    if (!res.ok) { const e=await res.json(); throw new Error(e.message); }
+    setConnectionStatus(true);
+    return true;
+  } catch(e) { setConnectionStatus(false,e.message); return false; }
+}
+
+// ── AUTO-SYNC alle 30s ────────────────────────────────────────────────────────
+function makeHash(pts) { return pts.map(p=>p.name+p.x+(p.type||'')+(p.comment||'')).join('|'); }
+
 function startAutoSync() {
   stopAutoSync();
   autoSyncTimer = setInterval(async () => {
     if (!isConfigured() || saveStatus === 'saving') return;
     const fresh = await loadFromGist();
     if (!fresh) return;
-    // Fingerprint enthält auch Kommentare und Typen
-    const fingerprint = p => p.name + p.x + (p.type||'') + (p.comment||'');
-    if (JSON.stringify(fresh.map(fingerprint)) !== JSON.stringify(points.map(fingerprint))) {
-      points.length = 0;
-      points.push(...fresh);
-      station = points.find(p => p.type === 'station') || null;
+    const newHash = makeHash(fresh);
+    if (newHash !== lastSyncHash) {
+      lastSyncHash = newHash;
+      points.length=0; points.push(...fresh);
+      station=points.find(p=>p.type==='station')||null;
       draw();
-      if (currentMode === '3d' && is3dInit) rebuild3DPoints();
-      setSaveStatus('saved', '↺ VON MITSPIELER AKTUALISIERT');
+      if (currentMode==='3d'&&is3dInit) rebuild3DPoints();
+      setSaveStatus('saved','↺ VON MITSPIELER AKTUALISIERT');
     }
   }, 30000);
 }
-function stopAutoSync() { if (autoSyncTimer) { clearInterval(autoSyncTimer); autoSyncTimer=null; } }
+function stopAutoSync() { if(autoSyncTimer){clearInterval(autoSyncTimer);autoSyncTimer=null;} }
 
 // ─── FALLBACK: eingebettete Daten ─────────────────────────────────────────────
 const rawGPS = [
@@ -1510,25 +1536,7 @@ function showInfo(p) {
   panel.classList.remove('hidden');
 }
 
-let commentDirty = false;
-function markCommentDirty() {
-  commentDirty = true;
-  const btn = document.getElementById('btn-save-comment');
-  if (btn) { btn.style.opacity = '1'; btn.style.borderColor = 'rgba(0,200,255,0.6)'; }
-  document.getElementById('comment-status').textContent = '';
-}
-function saveComment() {
-  if (!currentInfoPoint) return;
-  const txt = document.getElementById('info-comment').value.trim();
-  currentInfoPoint.comment = txt || undefined;
-  commentDirty = false;
-  const btn = document.getElementById('btn-save-comment');
-  if (btn) { btn.style.opacity = '0.4'; btn.style.borderColor = 'rgba(0,200,255,0.3)'; }
-  document.getElementById('comment-status').textContent = '✓ GESPEICHERT';
-  setTimeout(() => { document.getElementById('comment-status').textContent = ''; }, 2500);
-  triggerSave();
-  draw();
-}
+// (Kommentar-Funktionen weiter unten)
 
 function askDelete() {
   const p = currentInfoPoint;
@@ -1832,30 +1840,61 @@ document.getElementById('map-container').addEventListener('mousedown', () => {
 
 window.addEventListener('resize', resize);
 
+
+// ── KOMMENTAR ─────────────────────────────────────────────────────────────────
+let commentDirty = false;
+function markCommentDirty() {
+  commentDirty = true;
+  const btn = document.getElementById('btn-save-comment');
+  if (btn) { btn.style.opacity='1'; btn.style.color='#00c8ff'; btn.style.borderColor='rgba(0,200,255,0.5)'; }
+}
+function saveComment() {
+  if (!currentInfoPoint) return;
+  currentInfoPoint.comment = document.getElementById('info-comment').value.trim() || undefined;
+  commentDirty = false;
+  const btn = document.getElementById('btn-save-comment');
+  if (btn) { btn.style.opacity='0.5'; btn.style.color='rgba(0,200,255,0.5)'; btn.style.borderColor='rgba(0,200,255,0.25)'; }
+  document.getElementById('comment-status').textContent = '✓ GESPEICHERT';
+  setTimeout(()=>{ document.getElementById('comment-status').textContent=''; }, 2500);
+  triggerSave();
+  draw();
+}
+
 // ─── INIT ────────────────────────────────────────────────────────────────────
 (async function initApp() {
   loadConfig();
+  const vEl = document.getElementById('app-version');
+  if (vEl) vEl.textContent = 'v' + APP_VERSION;
+
   setSaveStatus('syncing', '⟳ LADE DATEN...');
 
   if (isConfigured()) {
+    setConnectionStatus(false, '⟳ VERBINDE...');
     const gistPoints = await loadFromGist();
     if (gistPoints && gistPoints.length > 0) {
       points.push(...gistPoints);
+      lastSyncHash = makeHash(gistPoints);
       setSaveStatus('saved', `✓ ${points.length} PUNKTE GELADEN`);
-      startAutoSync();
     } else {
+      // Gist verbunden aber leer → Fallback hochladen
       const fallback = parseGPS(rawGPS);
       fallback.forEach(p => p.type = classifyPoint(p));
       points.push(...fallback);
-      setSaveStatus('idle');
+      await saveToGist();
     }
+    startAutoSync();
   } else {
-    // Nicht konfiguriert → eingebettete Daten + Setup-Wizard zeigen
+    setConnectionStatus(false, 'Nicht konfiguriert');
     const fallback = parseGPS(rawGPS);
     fallback.forEach(p => p.type = classifyPoint(p));
     points.push(...fallback);
     setSaveStatus('error', '⚠ NICHT KONFIGURIERT – KLICK ⚙');
     setTimeout(() => openSetupWizard(), 800);
+  }
+
+  if (gistCfg.playerName) {
+    const btn = document.getElementById('btn-player');
+    if (btn) btn.textContent = '👤 ' + gistCfg.playerName.toUpperCase();
   }
 
   station = points.find(p => p.type === 'station') || null;
@@ -2330,13 +2369,13 @@ toggleFilter = function(type) {
 // ── Setup Wizard Logic ────────────────────────────────────────────────────────
 function openSetupWizard() {
   loadConfig();
-  document.getElementById('wiz-token').value = gistConfig.token || '';
-  document.getElementById('wiz-gistid').value = gistConfig.gistId || '';
-  document.getElementById('wiz-playername').value = gistConfig.playerName || '';
+  document.getElementById('wiz-token').value = gistCfg.token || '';
+  document.getElementById('wiz-gistid').value = gistCfg.gistId || '';
+  document.getElementById('wiz-playername').value = gistCfg.playerName || '';
   updateWizardStatus();
-  if (gistConfig.gistId) {
+  if (gistCfg.gistId) {
     document.getElementById('wiz-share-section').style.display = 'block';
-    document.getElementById('wiz-share-id').textContent = gistConfig.gistId;
+    document.getElementById('wiz-share-id').textContent = gistCfg.gistId;
   }
   document.getElementById('wizard-overlay').classList.remove('hidden');
 }
@@ -2356,7 +2395,7 @@ function updateWizardStatus() {
   if (isConfigured()) {
     badge.textContent = '✓ VERBUNDEN';
     badge.className = 'wiz-status-badge badge-ok';
-    text.textContent = `Verbunden mit Gist ${gistConfig.gistId.substring(0,12)}... • Spieler: ${gistConfig.playerName||'–'} • Auto-Sync alle 30s`;
+    text.textContent = `Verbunden mit Gist ${gistCfg.gistId.substring(0,12)}... • Spieler: ${gistCfg.playerName||'–'} • Auto-Sync alle 30s`;
   } else {
     badge.textContent = 'NICHT KONFIGURIERT';
     badge.className = 'wiz-status-badge badge-none';
@@ -2424,7 +2463,7 @@ function saveWizardConfig() {
   const playerName = document.getElementById('wiz-playername').value.trim() || 'Spieler';
   if (!token) { wizFeedback('wiz-main-feedback','⚠ Token fehlt',false); return; }
   if (!gistId) { wizFeedback('wiz-main-feedback','⚠ Gist-ID fehlt',false); return; }
-  gistConfig = { token, gistId, filename:'se_gps_data.json', playerName };
+  gistCfg = { token, gistId, playerName }; saveConfig();
   saveConfig();
   updateWizardStatus();
   wizFeedback('wiz-main-feedback','✓ Gespeichert! Lade Daten...');
@@ -2445,7 +2484,7 @@ function saveWizardConfig() {
 
 function resetWizardConfig() {
   if (!confirm('Verbindung trennen und Konfiguration löschen?')) return;
-  gistConfig = { token:'', gistId:'', filename:'se_gps_data.json' };
+  gistCfg = { token:'', gistId:'', playerName:'Spieler' }; saveConfig();
   saveConfig();
   stopAutoSync();
   document.getElementById('wiz-token').value='';
@@ -2458,7 +2497,7 @@ function resetWizardConfig() {
 }
 
 function copyGistId() {
-  const id = gistConfig.gistId || document.getElementById('wiz-gistid').value.trim();
+  const id = gistCfg.gistId || document.getElementById('wiz-gistid').value.trim();
   if (!id) return;
   navigator.clipboard.writeText(id).then(() => wizFeedback('wiz-main-feedback','✓ ID kopiert!')).catch(()=>{});
 }
