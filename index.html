@@ -973,18 +973,22 @@ async function saveToGist() {
 async function loadFromGist() {
   if (!isConfigured()) return null;
   try {
-    const res = await fetch(`https://api.github.com/gists/${gistConfig.gistId}`, {
+    // Immer die API verwenden (nicht raw_url) um frische Daten zu bekommen
+    const res = await fetch(`https://api.github.com/gists/${gistConfig.gistId}?t=${Date.now()}`, {
       headers: {
         'Authorization': `token ${gistConfig.token}`,
         'Accept': 'application/vnd.github.v3+json',
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
       }
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const gist = await res.json();
     const file = gist.files[gistConfig.filename];
     if (!file) throw new Error(`Datei "${gistConfig.filename}" nicht im Gist gefunden`);
-    const raw = file.content || (await fetch(file.raw_url).then(r=>r.text()));
+    // Inhalt direkt aus API-Antwort — kein separater fetch nötig
+    const raw = file.content;
+    if (!raw) throw new Error('Gist-Inhalt leer');
     const data = JSON.parse(raw);
     if (!data.points || data.points.length === 0) return null;
     return data.points.map(p => ({
@@ -1008,8 +1012,9 @@ function startAutoSync() {
     if (!isConfigured() || saveStatus === 'saving') return;
     const fresh = await loadFromGist();
     if (!fresh) return;
-    // Nur neu laden wenn sich was geändert hat
-    if (JSON.stringify(fresh.map(p=>p.name+p.x)) !== JSON.stringify(points.map(p=>p.name+p.x))) {
+    // Fingerprint enthält auch Kommentare und Typen
+    const fingerprint = p => p.name + p.x + (p.type||'') + (p.comment||'');
+    if (JSON.stringify(fresh.map(fingerprint)) !== JSON.stringify(points.map(fingerprint))) {
       points.length = 0;
       points.push(...fresh);
       station = points.find(p => p.type === 'station') || null;
