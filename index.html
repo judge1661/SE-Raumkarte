@@ -740,6 +740,7 @@
   <div id="save-status" style="font-size:0.62rem;letter-spacing:1px;transition:color 0.3s;min-width:180px;text-align:center;"></div>
   <div id="conn-status" style="font-size:0.58rem;letter-spacing:1px;color:#ff4444;white-space:nowrap;padding:0 6px">🔴 GETRENNT</div>
   <span id="app-version" style="font-size:0.52rem;color:rgba(168,216,234,0.22);letter-spacing:2px;padding-right:4px"></span>
+  <button onclick="togglePlayersPanel()" title="Verbundene Spieler" style="background:rgba(0,200,255,0.07);border:1px solid rgba(0,200,255,0.2);color:rgba(0,200,255,0.6);font-size:0.7rem;width:32px;height:32px;border-radius:3px;cursor:pointer;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.color='#00c8ff';this.style.background='rgba(0,200,255,0.15)'" onmouseout="this.style.color='rgba(0,200,255,0.6)';this.style.background='rgba(0,200,255,0.07)'">👥</button>
   <button onclick="openSetupWizard()" title="Multiplayer Einrichtung" style="background:rgba(0,200,255,0.07);border:1px solid rgba(0,200,255,0.2);color:rgba(0,200,255,0.6);font-size:1rem;width:32px;height:32px;border-radius:3px;cursor:pointer;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.color='#00c8ff';this.style.background='rgba(0,200,255,0.15)'" onmouseout="this.style.color='rgba(0,200,255,0.6)';this.style.background='rgba(0,200,255,0.07)'">⚙</button>
   <div id="coords-display">CURSOR: —</div>
 </div>
@@ -781,6 +782,7 @@
   <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('edel')"> <span style="color:#f1d875">● Edelmetalle</span></label>
   <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('spezial')"> <span style="color:#f175b4">● Spezial</span></label>
   <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('station')"> <span style="color:#7fff7f">● Station</span></label>
+  <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('planet')"> <span style="color:#c8a0ff">● Himmelskörper</span></label>
   <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('unbekannt')"> <span style="color:#888">● Unbekannt</span></label>
   <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('erschoepft')"> <span style="color:#ff4444">⊘ Erschöpft</span></label>
 </div>
@@ -835,12 +837,16 @@
   <div class="legend-item"><div class="legend-dot" style="background:#f1bf75"></div>Metalle (Fe, Ni, Co...)</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f1d875"></div>Edelmetalle (Au, Ag, Pt...)</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f175b4"></div>Spezial (Ti, W, Ta, Li...)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#c8a0ff;box-shadow:0 0 5px #c8a0ff66"></div>Himmelskörper (Planet/Mond)</div>
   <div class="legend-item"><div class="legend-dot" style="background:#888"></div>Unbekannt / Leer</div>
   <div class="legend-item"><div class="legend-dot" style="background:#ff4444;opacity:0.6"></div><span style="color:#ff4444">Erschöpft</span></div>
   <div style="margin-top:8px;font-size:0.6rem;color:rgba(168,216,234,0.4)">Scroll = Zoom | Drag = Pan<br>Klick = Details</div>
   <div style="margin-top:10px;border-top:1px solid rgba(0,200,255,0.1);padding-top:10px">
     <button class="btn-export-all" onclick="exportAll()">📋 ALLE EXPORTIEREN</button>
     <button class="btn-export-all" style="margin-top:5px;background:rgba(255,107,53,0.08);border-color:rgba(255,107,53,0.3);color:#ff6b35" onclick="exportFiltered()">📋 GEFILTERT EXPORTIEREN</button>
+    <div style="margin-top:8px;border-top:1px solid rgba(0,200,255,0.1);padding-top:8px">
+      <button class="btn-export-all" style="background:rgba(127,255,127,0.07);border-color:rgba(127,255,127,0.3);color:#7fff7f" onclick="openImportPanel()">📥 GPS IMPORTIEREN</button>
+    </div>
     <div id="copy-all-feedback"></div>
   </div>
 </div>
@@ -887,6 +893,7 @@
         <span class="type-chip" style="color:#f1bf75;background:rgba(241,191,117,0.1)" data-type="metall" onclick="selectChip(this)">Metall</span>
         <span class="type-chip" style="color:#f1d875;background:rgba(241,216,117,0.1)" data-type="edel" onclick="selectChip(this)">Edelmetall</span>
         <span class="type-chip" style="color:#f175b4;background:rgba(241,117,180,0.1)" data-type="spezial" onclick="selectChip(this)">Spezial</span>
+        <span class="type-chip" style="color:#c8a0ff;background:rgba(200,160,255,0.1)" data-type="planet" onclick="selectChip(this)">Himmelskörper</span>
         <span class="type-chip" style="color:#7fff7f;background:rgba(127,255,127,0.1)" data-type="station" onclick="selectChip(this)">Station</span>
       </div>
       <button class="btn-add-gps" onclick="addManual()">+ HINZUFÜGEN</button>
@@ -971,6 +978,7 @@ async function doSave() {
     setSaveStatus('saved','✓ GESPEICHERT ('+data.points.length+' Pkt · '+t+')');
     setConnStatus(true);
     syncHash = makeHash(points);
+    updatePlayerSeen(cfg.player, data.points.length);
   } catch(e) {
     setSaveStatus('error','⚠ '+e.message);
     setConnStatus(false, e.message);
@@ -994,6 +1002,8 @@ async function doLoad() {
       : file.content;
     const data = JSON.parse(raw);
     setConnStatus(true);
+    // Spieler-Tracking
+    if (data.by) updatePlayerSeen(data.by, (data.points||[]).length);
     if (!data.points) return null;
     return data.points.map(p=>({
       name: p.n||p.name||'?',
@@ -1042,6 +1052,11 @@ const saveToGist   = doSave;
 const rawGPS = [
   // Station (Ausgangspunkt)
   "GPS:RaumStation:429567.36:-12528.23:-11318.64:#FF75F19F",
+
+  // Himmelskörper
+  "GPS:Erde:0:0:0:#FFC8A0FF",
+  "GPS:Mond:16384:0:0:#FFC8A0FF",
+
 
   // Alle Punkte – bereinigt, dedupliziert (bei gleichen/sehr ähnlichen Koordinaten nur einmal)
   "GPS:A 0001 Lithium:447401.39:-19627.69:-18966.94:#FF75C9F1",
@@ -1215,15 +1230,17 @@ function parseGPS(lines) {
 }
 
 // ─── CLASSIFY ───────────────────────────────────────────────────────────────
-const edelKeywords = ['gold','silber','platin','quecksilber','au','ag','pt'];
+const edelKeywords   = ['gold','silber','platin','quecksilber','au','ag','pt'];
 const spezialKeywords = ['titan','wolfram','tantalum','tantal','lithium','sulfur','rocksalt','bauxit','galium','gallium','silizium','kobalt','magnesium','nickel','kobald','mag'];
-const metallKeywords = ['eisen','kupfer','fe','cu','ni','co','nickel'];
-const eisKeywords = ['eis','ice'];
+const metallKeywords  = ['eisen','kupfer','fe','cu','ni','co','nickel'];
+const eisKeywords     = ['eis','ice'];
+const planetKeywords  = ['planet','mond','moon','erde','earth','mars','europa','triton','alien','titan moon'];
 
 function classifyPoint(p) {
   if (p.name.toLowerCase().includes('raumstation') || p.name.toLowerCase().includes('station')) return 'station';
   if (p.name.toLowerCase().includes('base')) return 'station';
   const n = p.name.toLowerCase();
+  if (planetKeywords.some(k=>n.includes(k))) return 'planet';
   if (edelKeywords.some(k=>n.includes(k))) return 'edel';
   if (spezialKeywords.some(k=>n.includes(k))) return 'spezial';
   if (metallKeywords.some(k=>n.includes(k))) return 'metall';
@@ -1237,22 +1254,24 @@ function classifyPointByName(name) {
 }
 
 const typeColors = {
-  station: '#7fff7f',
-  eis: '#75c9f1',
-  metall: '#f1bf75',
-  edel: '#f1d875',
-  spezial: '#f175b4',
+  station:   '#7fff7f',
+  eis:       '#75c9f1',
+  metall:    '#f1bf75',
+  edel:      '#f1d875',
+  spezial:   '#f175b4',
+  planet:    '#c8a0ff',
   unbekannt: '#888888',
-  erschoepft: '#ff4444'
+  erschoepft:'#ff4444'
 };
 const typeLabels = {
-  station: 'Station',
-  eis: 'Eis / Ice',
-  metall: 'Metall',
-  edel: 'Edelmetall',
-  spezial: 'Spezial',
+  station:   'Station',
+  eis:       'Eis / Ice',
+  metall:    'Metall',
+  edel:      'Edelmetall',
+  spezial:   'Spezial',
+  planet:    'Himmelskörper',
   unbekannt: 'Unbekannt',
-  erschoepft: '⊘ Erschöpft'
+  erschoepft:'⊘ Erschöpft'
 };
 
 // Points array – filled async on init
@@ -1267,7 +1286,7 @@ let viewMode = 'xy';
 let transform = { x: 0, y: 0, scale: 1 };
 let dragging = false, lastMouse = null;
 let hoveredPoint = null;
-let filters = { eis:true, metall:true, edel:true, spezial:true, station:true, unbekannt:true, erschoepft:true };
+let filters = { eis:true, metall:true, edel:true, spezial:true, station:true, planet:true, unbekannt:true, erschoepft:true };
 
 function resize() {
   canvas.width = window.innerWidth;
@@ -2316,6 +2335,182 @@ toggleFilter = function(type) {
 </div>
 
 <script>
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  IMPORT SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+function openImportPanel() {
+  document.getElementById('import-overlay').style.display='flex';
+  switchImportTab('text');
+}
+function closeImportPanel() {
+  document.getElementById('import-overlay').style.display='none';
+  document.getElementById('imp-feedback').textContent='';
+}
+document.getElementById('import-overlay').addEventListener('click',e=>{
+  if(e.target===document.getElementById('import-overlay')) closeImportPanel();
+});
+
+function switchImportTab(tab) {
+  ['text','json','file'].forEach(t=>{
+    const btn=document.getElementById('imp-tab-'+t);
+    const con=document.getElementById('imp-tab-'+t+'-content');
+    const active=(t===tab);
+    btn.style.background=active?'rgba(127,255,127,0.15)':'rgba(0,200,255,0.05)';
+    btn.style.borderColor=active?'rgba(127,255,127,0.4)':'rgba(0,200,255,0.2)';
+    btn.style.color=active?'#7fff7f':'rgba(0,200,255,0.5)';
+    if(con) con.style.display=active?'block':'none';
+  });
+}
+
+function impFeedback(msg, ok=true) {
+  const el=document.getElementById('imp-feedback');
+  el.textContent=msg; el.style.color=ok?'#7fff7f':'#ff5533';
+}
+
+function doImportPoints(newPoints, overwrite) {
+  if (overwrite) {
+    // Behalte Station
+    const stat=points.find(p=>p.type==='station');
+    points.length=0;
+    if(stat) points.push(stat);
+  }
+  let added=0, skipped=0;
+  newPoints.forEach(p=>{
+    const dup=points.find(e=>Math.abs(e.x-p.x)<100&&Math.abs(e.y-p.y)<100&&Math.abs(e.z-p.z)<100);
+    if(dup){skipped++;return;}
+    if(!p.type) p.type=classifyPoint(p);
+    points.push(p); added++;
+  });
+  station=points.find(p=>p.type==='station')||null;
+  draw();
+  if(currentMode==='3d'&&is3dInit) rebuild3DPoints();
+  triggerSave();
+  impFeedback(`✓ ${added} Punkte importiert${skipped?', '+skipped+' Duplikate übersprungen':''}`);
+  setTimeout(closeImportPanel, 3000);
+}
+
+function importFromText() {
+  const raw=document.getElementById('imp-text-input').value.trim();
+  if (!raw){impFeedback('⚠ Kein Text eingegeben',false);return;}
+  const overwrite=document.getElementById('imp-overwrite').checked;
+  const lines=raw.split('\n').map(l=>l.trim()).filter(l=>l.startsWith('GPS:'));
+  if (!lines.length){impFeedback('⚠ Keine gültigen GPS-Strings gefunden',false);return;}
+  const newPts=[];
+  lines.forEach(line=>{
+    const parts=line.replace(/^GPS:/,'').split(':');
+    if(parts.length<4) return;
+    const name=parts[0].trim();
+    const x=parseFloat(parts[1]),y=parseFloat(parts[2]),z=parseFloat(parts[3]);
+    if(isNaN(x)||isNaN(y)||isNaN(z)) return;
+    newPts.push({name,x,y,z,type:classifyPoint({name})});
+  });
+  if(!newPts.length){impFeedback('⚠ Keine gültigen Koordinaten geparst',false);return;}
+  doImportPoints(newPts, overwrite);
+}
+
+function importFromJSON() {
+  const raw=document.getElementById('imp-json-input').value.trim();
+  const overwrite=document.getElementById('imp-json-overwrite').checked;
+  try {
+    const data=JSON.parse(raw);
+    const pts=(data.points||[]).map(p=>({
+      name:p.n||p.name||'?',
+      x:parseFloat(p.x),y:parseFloat(p.y),z:parseFloat(p.z),
+      type:p.t||p.type||classifyPointByName(p.n||p.name||''),
+      originalType:p.o||p.originalType||undefined,
+      comment:p.c||p.comment||undefined
+    }));
+    if(!pts.length){impFeedback('⚠ Keine Punkte in JSON gefunden',false);return;}
+    doImportPoints(pts,overwrite);
+  } catch(e){impFeedback('⚠ JSON Fehler: '+e.message,false);}
+}
+
+function importFromFile(input) {
+  const file=input.files[0];
+  if(!file) return;
+  document.getElementById('imp-file-info').textContent='⟳ Lese: '+file.name;
+  const overwrite=document.getElementById('imp-file-overwrite').checked;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const content=e.target.result;
+    try {
+      if(file.name.endsWith('.json')) {
+        const data=JSON.parse(content);
+        const pts=(data.points||[]).map(p=>({
+          name:p.n||p.name||'?',
+          x:parseFloat(p.x),y:parseFloat(p.y),z:parseFloat(p.z),
+          type:p.t||p.type||classifyPointByName(p.n||p.name||''),
+          originalType:p.o||p.originalType||undefined,
+          comment:p.c||p.comment||undefined
+        }));
+        document.getElementById('imp-file-info').textContent='✓ '+pts.length+' Punkte gelesen';
+        doImportPoints(pts,overwrite);
+      } else {
+        // .txt GPS-Strings
+        const lines=content.split('\n').map(l=>l.trim()).filter(l=>l.startsWith('GPS:'));
+        const pts=lines.map(line=>{
+          const parts=line.replace(/^GPS:/,'').split(':');
+          const name=parts[0].trim();
+          const x=parseFloat(parts[1]),y=parseFloat(parts[2]),z=parseFloat(parts[3]);
+          return {name,x,y,z,type:classifyPoint({name})};
+        }).filter(p=>!isNaN(p.x));
+        document.getElementById('imp-file-info').textContent='✓ '+pts.length+' GPS-Strings gelesen';
+        doImportPoints(pts,overwrite);
+      }
+    } catch(err){
+      document.getElementById('imp-file-info').textContent='';
+      impFeedback('⚠ Datei-Fehler: '+err.message,false);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SPIELER-TRACKING  —  wer hat wann gespeichert
+// ═══════════════════════════════════════════════════════════════════════════════
+let playersSeen = {};  // { name: { lastSeen: ISO, points: count } }
+
+function updatePlayerSeen(savedBy, pointCount) {
+  if (!savedBy || savedBy==='Spieler') return;
+  playersSeen[savedBy] = { lastSeen: new Date().toISOString(), points: pointCount };
+  renderPlayersPanel();
+}
+
+function renderPlayersPanel() {
+  const el=document.getElementById('players-list');
+  if (!el) return;
+  const names=Object.keys(playersSeen);
+  if (!names.length) {
+    el.innerHTML='<div style="color:rgba(168,216,234,0.3)">Noch keine Mitspieler erkannt</div>';
+    return;
+  }
+  const now=new Date();
+  el.innerHTML=names.map(name=>{
+    const d=playersSeen[name];
+    const mins=Math.round((now-new Date(d.lastSeen))/60000);
+    const isMe=(name===cfg.player);
+    const col=isMe?'#7fff7f':'#00c8ff';
+    const ago=mins<1?'gerade eben':mins<60?`vor ${mins}min`:`vor ${Math.round(mins/60)}h`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:3px 0;border-bottom:1px solid rgba(0,200,255,0.06)">
+      <span style="color:${col}">👤 ${name}${isMe?' (ich)':''}</span>
+      <span style="color:rgba(168,216,234,0.35);font-size:0.6rem">${ago}</span>
+    </div>
+    <div style="font-size:0.58rem;color:rgba(168,216,234,0.25);margin-bottom:4px">${d.points} Punkte</div>`;
+  }).join('');
+}
+
+let playersPanelOpen=false;
+function togglePlayersPanel() {
+  playersPanelOpen=!playersPanelOpen;
+  document.getElementById('players-overlay').style.display=playersPanelOpen?'block':'none';
+  if(playersPanelOpen) { renderPlayersPanel(); }
+}
+function closePlayersPanel() {
+  playersPanelOpen=false;
+  document.getElementById('players-overlay').style.display='none';
+}
+
 // ── WIZARD LOGIC ──────────────────────────────────────────────────────────────
 function openSetupWizard() {
   document.getElementById('wiz-token').value  = cfg.token  || '';
@@ -2455,6 +2650,85 @@ document.getElementById('wizard-overlay').addEventListener('click',e=>{
   if(e.target===document.getElementById('wizard-overlay')) closeSetupWizard();
 });
 </script>
+
+
+<!-- IMPORT PANEL OVERLAY -->
+<div id="import-overlay" style="display:none;position:fixed;inset:0;z-index:2500;background:rgba(0,5,15,0.92);align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+  <div style="background:rgba(3,12,25,0.99);border:1px solid rgba(127,255,127,0.3);border-radius:6px;padding:26px;width:480px;max-height:85vh;overflow-y:auto;box-shadow:0 0 60px rgba(127,255,127,0.08);font-family:'Share Tech Mono',monospace">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;border-bottom:1px solid rgba(127,255,127,0.15);padding-bottom:12px">
+      <div style="font-family:'Orbitron',sans-serif;font-size:0.85rem;letter-spacing:3px;color:#7fff7f">📥 GPS IMPORTIEREN</div>
+      <button onclick="closeImportPanel()" style="background:none;border:none;color:rgba(168,216,234,0.4);font-size:1.1rem;cursor:pointer">✕</button>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:14px">
+      <button id="imp-tab-text" onclick="switchImportTab('text')" style="flex:1;background:rgba(127,255,127,0.15);border:1px solid rgba(127,255,127,0.4);color:#7fff7f;font-family:'Share Tech Mono',monospace;font-size:0.62rem;letter-spacing:1px;padding:6px;border-radius:3px;cursor:pointer">📋 TEXT / GPS-STRING</button>
+      <button id="imp-tab-json" onclick="switchImportTab('json')" style="flex:1;background:rgba(0,200,255,0.05);border:1px solid rgba(0,200,255,0.2);color:rgba(0,200,255,0.5);font-family:'Share Tech Mono',monospace;font-size:0.62rem;letter-spacing:1px;padding:6px;border-radius:3px;cursor:pointer">🗂 JSON-DATEI</button>
+      <button id="imp-tab-file" onclick="switchImportTab('file')" style="flex:1;background:rgba(0,200,255,0.05);border:1px solid rgba(0,200,255,0.2);color:rgba(0,200,255,0.5);font-family:'Share Tech Mono',monospace;font-size:0.62rem;letter-spacing:1px;padding:6px;border-radius:3px;cursor:pointer">📂 DATEI LADEN</button>
+    </div>
+
+    <!-- Tab: Text / GPS-String -->
+    <div id="imp-tab-text-content">
+      <div style="font-size:0.62rem;color:rgba(168,216,234,0.45);margin-bottom:8px;line-height:1.6">
+        GPS-Strings einfügen (ein oder mehrere Zeilen):<br>
+        <span style="color:rgba(0,200,255,0.4)">GPS:Name:X:Y:Z:#FFRRGGBB:</span>
+      </div>
+      <textarea id="imp-text-input" placeholder="GPS:A 0001 Gold:123456:78901:23456:#FFF1D875:&#10;GPS:A 0002 Eis:..." style="width:100%;height:130px;background:rgba(0,200,255,0.04);border:1px solid rgba(0,200,255,0.2);color:#a8d8ea;font-family:'Share Tech Mono',monospace;font-size:0.65rem;padding:8px;resize:vertical;outline:none;border-radius:3px;line-height:1.5;box-sizing:border-box"></textarea>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+        <label style="font-size:0.6rem;color:rgba(168,216,234,0.4);display:flex;align-items:center;gap:5px;cursor:pointer">
+          <input type="checkbox" id="imp-overwrite" style="accent-color:#7fff7f"> Bestehende Daten ersetzen (sonst nur neue hinzufügen)
+        </label>
+      </div>
+      <button onclick="importFromText()" style="margin-top:10px;width:100%;background:rgba(127,255,127,0.1);border:1px solid rgba(127,255,127,0.4);color:#7fff7f;font-family:'Share Tech Mono',monospace;font-size:0.65rem;letter-spacing:2px;padding:9px;border-radius:3px;cursor:pointer">📥 IMPORTIEREN</button>
+    </div>
+
+    <!-- Tab: JSON -->
+    <div id="imp-tab-json-content" style="display:none">
+      <div style="font-size:0.62rem;color:rgba(168,216,234,0.45);margin-bottom:8px;line-height:1.6">
+        JSON-Daten einfügen (Format wie im Gist gespeichert):
+      </div>
+      <textarea id="imp-json-input" placeholder='{"v":2,"points":[{"n":"...","x":...}]}' style="width:100%;height:130px;background:rgba(0,200,255,0.04);border:1px solid rgba(0,200,255,0.2);color:#a8d8ea;font-family:'Share Tech Mono',monospace;font-size:0.65rem;padding:8px;resize:vertical;outline:none;border-radius:3px;line-height:1.5;box-sizing:border-box"></textarea>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+        <label style="font-size:0.6rem;color:rgba(168,216,234,0.4);display:flex;align-items:center;gap:5px;cursor:pointer">
+          <input type="checkbox" id="imp-json-overwrite" style="accent-color:#7fff7f"> Bestehende Daten ersetzen
+        </label>
+      </div>
+      <button onclick="importFromJSON()" style="margin-top:10px;width:100%;background:rgba(127,255,127,0.1);border:1px solid rgba(127,255,127,0.4);color:#7fff7f;font-family:'Share Tech Mono',monospace;font-size:0.65rem;letter-spacing:2px;padding:9px;border-radius:3px;cursor:pointer">📥 JSON IMPORTIEREN</button>
+    </div>
+
+    <!-- Tab: Datei -->
+    <div id="imp-tab-file-content" style="display:none">
+      <div style="font-size:0.62rem;color:rgba(168,216,234,0.45);margin-bottom:8px;line-height:1.6">
+        Unterstützte Dateiformate: <span style="color:#00c8ff">.json</span> (Gist-Export) oder <span style="color:#00c8ff">.txt</span> (GPS-Strings)
+      </div>
+      <div onclick="document.getElementById('imp-file-input').click()" style="border:2px dashed rgba(127,255,127,0.25);border-radius:4px;padding:30px;text-align:center;cursor:pointer;color:rgba(127,255,127,0.5);font-size:0.7rem;letter-spacing:1px;transition:all 0.2s" onmouseover="this.style.borderColor='rgba(127,255,127,0.5)';this.style.color='#7fff7f'" onmouseout="this.style.borderColor='rgba(127,255,127,0.25)';this.style.color='rgba(127,255,127,0.5)'">
+        📂 DATEI HIER ABLEGEN<br>oder klicken zum Auswählen<br><span style="font-size:0.58rem;color:rgba(168,216,234,0.3)">.json / .txt</span>
+      </div>
+      <input type="file" id="imp-file-input" accept=".json,.txt" style="display:none" onchange="importFromFile(this)">
+      <div id="imp-file-info" style="font-size:0.62rem;color:#7fff7f;margin-top:6px;min-height:18px"></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+        <label style="font-size:0.6rem;color:rgba(168,216,234,0.4);display:flex;align-items:center;gap:5px;cursor:pointer">
+          <input type="checkbox" id="imp-file-overwrite" style="accent-color:#7fff7f"> Bestehende Daten ersetzen
+        </label>
+      </div>
+    </div>
+
+    <div id="imp-feedback" style="font-size:0.68rem;color:#7fff7f;margin-top:12px;min-height:20px;text-align:center;border-top:1px solid rgba(0,200,255,0.1);padding-top:10px"></div>
+  </div>
+</div>
+
+
+<!-- SPIELER-PANEL OVERLAY -->
+<div id="players-overlay" style="display:none;position:fixed;top:55px;right:10px;z-index:1500;background:rgba(3,12,25,0.96);border:1px solid rgba(0,200,255,0.25);border-radius:5px;padding:16px;width:240px;box-shadow:0 0 40px rgba(0,200,255,0.08);font-family:'Share Tech Mono',monospace">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid rgba(0,200,255,0.1);padding-bottom:8px">
+    <div style="font-size:0.7rem;letter-spacing:2px;color:#00c8ff">// VERBUNDENE SPIELER</div>
+    <button onclick="closePlayersPanel()" style="background:none;border:none;color:rgba(168,216,234,0.3);cursor:pointer;font-size:0.9rem">✕</button>
+  </div>
+  <div id="players-list" style="font-size:0.65rem;line-height:2"></div>
+  <div style="margin-top:10px;border-top:1px solid rgba(0,200,255,0.1);padding-top:8px;font-size:0.58rem;color:rgba(168,216,234,0.3)">
+    Aktualisiert bei Auto-Sync (alle 30s)
+  </div>
+</div>
 
 </body>
 </html>
