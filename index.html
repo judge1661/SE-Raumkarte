@@ -738,8 +738,8 @@
     <button class="mode-tab" id="tab-3d" onclick="setMode('3d')">3D RAUM</button>
   </div>
   <div id="save-status" style="font-size:0.62rem;letter-spacing:1px;transition:color 0.3s;min-width:180px;text-align:center;"></div>
-  <div id="conn-status" style="font-size:0.58rem;letter-spacing:1px;color:#ff4444;white-space:nowrap">🔴 GETRENNT</div>
-  <span id="app-version" style="font-size:0.52rem;color:rgba(168,216,234,0.22);letter-spacing:2px">v2.2</span>
+  <div id="conn-status" style="font-size:0.58rem;letter-spacing:1px;color:#ff4444;white-space:nowrap;padding:0 6px">🔴 GETRENNT</div>
+  <span id="app-version" style="font-size:0.52rem;color:rgba(168,216,234,0.22);letter-spacing:2px;padding-right:4px"></span>
   <button onclick="openSetupWizard()" title="Multiplayer Einrichtung" style="background:rgba(0,200,255,0.07);border:1px solid rgba(0,200,255,0.2);color:rgba(0,200,255,0.6);font-size:1rem;width:32px;height:32px;border-radius:3px;cursor:pointer;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.color='#00c8ff';this.style.background='rgba(0,200,255,0.15)'" onmouseout="this.style.color='rgba(0,200,255,0.6)';this.style.background='rgba(0,200,255,0.07)'">⚙</button>
   <div id="coords-display">CURSOR: —</div>
 </div>
@@ -898,159 +898,145 @@
 
 <script>
 // ═══════════════════════════════════════════════════════════════════════════
-//  GITHUB GIST MULTIPLAYER SPEICHER  –  v2.2
+//  SE RAUMKARTE  v2.3  –  GitHub Gist Multiplayer
 // ═══════════════════════════════════════════════════════════════════════════
-const APP_VERSION  = '2.2';
-const CFG_KEY      = 'se_raumkarte_cfg_v2';
-let gistCfg = { token:'', gistId:'', playerName:'Spieler' };
-let saveDebounceTimer = null;
-let saveStatus     = 'idle';
-let autoSyncTimer  = null;
-let lastSyncHash   = '';
+const APP_VERSION = '2.3';
+const CFG_KEY     = 'se_raumkarte_v23';
+let cfg = { token:'', gistId:'', player:'Spieler' };
 
+let saveTimer = null;
+let saveStatus = 'idle';
+let syncTimer  = null;
+let syncHash   = '';
+
+// Config
 function loadConfig() {
-  try { const r=localStorage.getItem(CFG_KEY); if(r) gistCfg={...gistCfg,...JSON.parse(r)}; } catch(e){}
+  try { const r=localStorage.getItem(CFG_KEY); if(r) cfg={...cfg,...JSON.parse(r)}; } catch(e){}
 }
 function saveConfig() {
-  try { localStorage.setItem(CFG_KEY, JSON.stringify(gistCfg)); } catch(e){}
+  try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch(e){}
 }
-function isConfigured() { return !!(gistCfg.token && gistCfg.gistId); }
+function isConfigured() { return !!(cfg.token && cfg.gistId); }
 
+// Status UI
 function setSaveStatus(status, msg) {
   saveStatus = status;
   const el = document.getElementById('save-status');
   if (!el) return;
-  const icons = { idle:'', saving:'⟳ SYNC...', saved:'✓ GESPEICHERT', error:'⚠ FEHLER', syncing:'⟳ LADE...' };
-  const cols  = { idle:'rgba(168,216,234,0.3)', saving:'#00c8ff', saved:'#7fff7f', error:'#ff6644', syncing:'#00c8ff' };
-  el.textContent = msg || icons[status];
-  el.style.color = cols[status];
-  if (status === 'saved') setTimeout(() => { el.textContent=''; saveStatus='idle'; }, 4000);
+  const txt = { idle:'', saving:'⟳ SPEICHERE...', saved:'✓ GESPEICHERT', error:'⚠ FEHLER', syncing:'⟳ LADE...' };
+  const col = { idle:'rgba(168,216,234,0.3)', saving:'#00c8ff', saved:'#7fff7f', error:'#ff5533', syncing:'#00c8ff' };
+  el.textContent = msg!=null ? msg : (txt[status]||'');
+  el.style.color  = col[status]||'#aaa';
+  if (status==='saved') setTimeout(()=>{ if(saveStatus==='saved'){el.textContent='';saveStatus='idle';} }, 4000);
 }
 
-function setConnectionStatus(ok, msg) {
+function setConnStatus(ok, msg) {
   const el = document.getElementById('conn-status');
   if (!el) return;
-  if (ok) { el.textContent='🟢 VERBUNDEN'; el.style.color='#7fff7f'; }
-  else    { el.textContent='🔴 '+(msg||'GETRENNT'); el.style.color='#ff4444'; }
+  el.textContent = ok ? '🟢 VERBUNDEN' : ('🔴 '+(msg||'GETRENNT'));
+  el.style.color  = ok ? '#7fff7f' : '#ff4444';
+}
+
+// GitHub API helpers
+function ghHeaders() {
+  return {
+    'Authorization': 'token ' + cfg.token,
+    'Accept': 'application/vnd.github+json',
+    'Content-Type': 'application/json'
+  };
 }
 
 // ── SPEICHERN ─────────────────────────────────────────────────────────────────
 function triggerSave() {
-  clearTimeout(saveDebounceTimer);
+  clearTimeout(saveTimer);
   setSaveStatus('saving');
-  saveDebounceTimer = setTimeout(saveToGist, 900);
+  saveTimer = setTimeout(doSave, 800);
 }
 
-async function saveToGist() {
+async function doSave() {
   if (!isConfigured()) { setSaveStatus('error','⚠ NICHT KONFIGURIERT'); return; }
-  const payload = {
-    version: 2, appVersion: APP_VERSION,
-    savedAt: new Date().toISOString(),
-    savedBy: gistCfg.playerName || 'Spieler',
-    points: points.map(p => ({
-      name:p.name, x:p.x, y:p.y, z:p.z,
-      type:p.type, originalType:p.originalType||null, comment:p.comment||null
-    }))
+  const data = {
+    v: 2, app: APP_VERSION,
+    at: new Date().toISOString(),
+    by: cfg.player,
+    points: points.map(p=>({n:p.name,x:p.x,y:p.y,z:p.z,t:p.type,o:p.originalType||null,c:p.comment||null}))
   };
   try {
-    const res = await fetch('https://api.github.com/gists/' + gistCfg.gistId, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': 'Bearer ' + gistCfg.token,
-        'Content-Type': 'application/json',
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28'
-      },
-      body: JSON.stringify({ files: { 'se_gps_data.json': { content: JSON.stringify(payload, null, 2) } } })
+    const r = await fetch('https://api.github.com/gists/'+cfg.gistId, {
+      method:'PATCH', headers:ghHeaders(),
+      body: JSON.stringify({ files:{ 'se_gps_data.json':{ content: JSON.stringify(data,null,2) } } })
     });
-    if (!res.ok) { const e=await res.json(); throw new Error(e.message||res.status); }
-    const t = new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    setSaveStatus('saved', '✓ GESPEICHERT (' + payload.points.length + ' Pkt, ' + t + ')');
-    setConnectionStatus(true);
-    lastSyncHash = makeHash(points);
+    if (!r.ok) { const e=await r.json(); throw new Error(e.message||r.status); }
+    const t=new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    setSaveStatus('saved','✓ GESPEICHERT ('+data.points.length+' Pkt · '+t+')');
+    setConnStatus(true);
+    syncHash = makeHash(points);
   } catch(e) {
     setSaveStatus('error','⚠ '+e.message);
-    setConnectionStatus(false, e.message);
+    setConnStatus(false, e.message);
+    console.error('Save error:',e);
   }
 }
 
 // ── LADEN ─────────────────────────────────────────────────────────────────────
-async function loadFromGist() {
+async function doLoad() {
   if (!isConfigured()) return null;
   try {
-    const res = await fetch('https://api.github.com/gists/' + gistCfg.gistId, {
-      headers: {
-        'Authorization': 'Bearer ' + gistCfg.token,
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'Cache-Control': 'no-cache'
-      }
+    const r = await fetch('https://api.github.com/gists/'+cfg.gistId, {
+      headers: ghHeaders()
     });
-    if (!res.ok) { const e=await res.json(); throw new Error(e.message||res.status); }
-    const gist = await res.json();
+    if (!r.ok) { const e=await r.json(); throw new Error(e.message||r.status); }
+    const gist = await r.json();
     const file = gist.files['se_gps_data.json'];
-    if (!file) { setConnectionStatus(true); return null; }
-    let raw = file.content;
-    if (file.truncated) {
-      const r2 = await fetch(file.raw_url, { headers:{'Authorization':'Bearer '+gistCfg.token} });
-      raw = await r2.text();
-    }
+    if (!file) { setConnStatus(true); return null; }  // Gist ok, Datei fehlt noch
+    const raw = file.truncated
+      ? await fetch(file.raw_url,{headers:ghHeaders()}).then(x=>x.text())
+      : file.content;
     const data = JSON.parse(raw);
-    setConnectionStatus(true);
-    if (!data.points || data.points.length === 0) return null;
-    return data.points.map(p => ({
-      name: p.name,
+    setConnStatus(true);
+    if (!data.points) return null;
+    return data.points.map(p=>({
+      name: p.n||p.name||'?',
       x: parseFloat(p.x), y: parseFloat(p.y), z: parseFloat(p.z),
-      type: p.type || classifyPointByName(p.name),
-      originalType: p.originalType || undefined,
-      comment: p.comment || undefined
+      type: p.t||p.type||classifyPointByName(p.n||p.name||''),
+      originalType: p.o||p.originalType||undefined,
+      comment: p.c||p.comment||undefined
     }));
   } catch(e) {
-    setConnectionStatus(false, e.message);
+    setConnStatus(false, e.message);
     setSaveStatus('error','⚠ LADEN: '+e.message);
+    console.error('Load error:',e);
     return null;
   }
 }
 
-// ── VERBINDUNGSTEST ───────────────────────────────────────────────────────────
-async function testGistConnection() {
-  if (!isConfigured()) { setConnectionStatus(false,'Nicht konfiguriert'); return false; }
-  setConnectionStatus(false,'⟳ TESTE...');
-  try {
-    const res = await fetch('https://api.github.com/gists/' + gistCfg.gistId, {
-      headers: {
-        'Authorization': 'Bearer ' + gistCfg.token,
-        'Accept': 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28'
-      }
-    });
-    if (!res.ok) { const e=await res.json(); throw new Error(e.message); }
-    setConnectionStatus(true);
-    return true;
-  } catch(e) { setConnectionStatus(false,e.message); return false; }
+// ── AUTO-SYNC ─────────────────────────────────────────────────────────────────
+function makeHash(pts) {
+  return pts.map(p=>p.name+'|'+p.x+'|'+(p.type||'')+'|'+(p.comment||'')).join(';');
 }
-
-// ── AUTO-SYNC alle 30s ────────────────────────────────────────────────────────
-function makeHash(pts) { return pts.map(p=>p.name+p.x+(p.type||'')+(p.comment||'')).join('|'); }
 
 function startAutoSync() {
   stopAutoSync();
-  autoSyncTimer = setInterval(async () => {
-    if (!isConfigured() || saveStatus === 'saving') return;
-    const fresh = await loadFromGist();
-    if (!fresh) return;
-    const newHash = makeHash(fresh);
-    if (newHash !== lastSyncHash) {
-      lastSyncHash = newHash;
+  syncTimer = setInterval(async ()=>{
+    if (!isConfigured() || saveStatus==='saving') return;
+    const fresh = await doLoad();
+    if (!fresh || fresh.length===0) return;
+    const h = makeHash(fresh);
+    if (h !== syncHash) {
+      syncHash = h;
       points.length=0; points.push(...fresh);
-      station=points.find(p=>p.type==='station')||null;
+      station = points.find(p=>p.type==='station')||null;
       draw();
       if (currentMode==='3d'&&is3dInit) rebuild3DPoints();
-      setSaveStatus('saved','↺ VON MITSPIELER AKTUALISIERT');
+      setSaveStatus('saved','↺ AKTUALISIERT VON '+((fresh.length>0&&fresh[0])?'Mitspieler':'Server'));
     }
   }, 30000);
 }
-function stopAutoSync() { if(autoSyncTimer){clearInterval(autoSyncTimer);autoSyncTimer=null;} }
+function stopAutoSync() { if(syncTimer){clearInterval(syncTimer);syncTimer=null;} }
+
+// Legacy aliases so alter Code noch funktioniert
+const loadFromGist = doLoad;
+const saveToGist   = doSave;
 
 // ─── FALLBACK: eingebettete Daten ─────────────────────────────────────────────
 const rawGPS = [
@@ -1536,7 +1522,18 @@ function showInfo(p) {
   panel.classList.remove('hidden');
 }
 
-// (Kommentar-Funktionen weiter unten)
+let commentDirty = false;
+function markCommentDirty() { commentDirty = true; document.getElementById('comment-status').textContent = ''; }
+function saveComment() {
+  if (!currentInfoPoint || !commentDirty) return;
+  const txt = document.getElementById('info-comment').value.trim();
+  currentInfoPoint.comment = txt || undefined;
+  commentDirty = false;
+  document.getElementById('comment-status').textContent = '✓ GESPEICHERT';
+  setTimeout(() => { document.getElementById('comment-status').textContent = ''; }, 2000);
+  triggerSave();
+  draw(); // refresh label if comment indicator visible
+}
 
 function askDelete() {
   const p = currentInfoPoint;
@@ -1842,64 +1839,56 @@ window.addEventListener('resize', resize);
 
 
 // ── KOMMENTAR ─────────────────────────────────────────────────────────────────
-let commentDirty = false;
 function markCommentDirty() {
-  commentDirty = true;
-  const btn = document.getElementById('btn-save-comment');
-  if (btn) { btn.style.opacity='1'; btn.style.color='#00c8ff'; btn.style.borderColor='rgba(0,200,255,0.5)'; }
+  const b=document.getElementById('btn-save-comment');
+  if(b){b.style.opacity='1';b.style.color='#00c8ff';}
 }
 function saveComment() {
   if (!currentInfoPoint) return;
   currentInfoPoint.comment = document.getElementById('info-comment').value.trim() || undefined;
-  commentDirty = false;
-  const btn = document.getElementById('btn-save-comment');
-  if (btn) { btn.style.opacity='0.5'; btn.style.color='rgba(0,200,255,0.5)'; btn.style.borderColor='rgba(0,200,255,0.25)'; }
-  document.getElementById('comment-status').textContent = '✓ GESPEICHERT';
-  setTimeout(()=>{ document.getElementById('comment-status').textContent=''; }, 2500);
-  triggerSave();
-  draw();
+  const b=document.getElementById('btn-save-comment');
+  if(b){b.style.opacity='0.5';b.style.color='rgba(0,200,255,0.4)';}
+  document.getElementById('comment-status').textContent='✓';
+  setTimeout(()=>{document.getElementById('comment-status').textContent='';},2000);
+  triggerSave(); draw();
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 (async function initApp() {
   loadConfig();
-  const vEl = document.getElementById('app-version');
-  if (vEl) vEl.textContent = 'v' + APP_VERSION;
-
-  setSaveStatus('syncing', '⟳ LADE DATEN...');
+  const vEl=document.getElementById('app-version');
+  if(vEl) vEl.textContent='v'+APP_VERSION;
 
   if (isConfigured()) {
-    setConnectionStatus(false, '⟳ VERBINDE...');
-    const gistPoints = await loadFromGist();
-    if (gistPoints && gistPoints.length > 0) {
-      points.push(...gistPoints);
-      lastSyncHash = makeHash(gistPoints);
-      setSaveStatus('saved', `✓ ${points.length} PUNKTE GELADEN`);
+    setConnStatus(false,'⟳ VERBINDE...');
+    setSaveStatus('syncing','⟳ LADE DATEN...');
+    const loaded = await doLoad();
+    if (loaded && loaded.length > 0) {
+      points.push(...loaded);
+      syncHash = makeHash(loaded);
+      setSaveStatus('saved','✓ '+points.length+' PUNKTE GELADEN');
     } else {
-      // Gist verbunden aber leer → Fallback hochladen
-      const fallback = parseGPS(rawGPS);
-      fallback.forEach(p => p.type = classifyPoint(p));
-      points.push(...fallback);
-      await saveToGist();
+      // Gist verbunden aber leer → eingebettete Daten hochladen
+      const fb=parseGPS(rawGPS); fb.forEach(p=>p.type=classifyPoint(p)); points.push(...fb);
+      setSaveStatus('saving','⟳ ERSTINITIALISIERUNG...');
+      await doSave();
     }
     startAutoSync();
   } else {
-    setConnectionStatus(false, 'Nicht konfiguriert');
-    const fallback = parseGPS(rawGPS);
-    fallback.forEach(p => p.type = classifyPoint(p));
-    points.push(...fallback);
-    setSaveStatus('error', '⚠ NICHT KONFIGURIERT – KLICK ⚙');
-    setTimeout(() => openSetupWizard(), 800);
+    setConnStatus(false,'Nicht konfiguriert');
+    const fb=parseGPS(rawGPS); fb.forEach(p=>p.type=classifyPoint(p)); points.push(...fb);
+    setSaveStatus('error','⚠ NICHT KONFIGURIERT – KLICK ⚙');
+    setTimeout(()=>openSetupWizard(), 800);
   }
 
-  if (gistCfg.playerName) {
-    const btn = document.getElementById('btn-player');
-    if (btn) btn.textContent = '👤 ' + gistCfg.playerName.toUpperCase();
+  // Spielername im Button anzeigen
+  if (cfg.player && cfg.player !== 'Spieler') {
+    const btn=document.getElementById('btn-player');
+    if(btn) btn.textContent='👤 '+cfg.player.toUpperCase();
   }
 
-  station = points.find(p => p.type === 'station') || null;
-  resize();
-  setTimeout(resetView, 100);
+  station=points.find(p=>p.type==='station')||null;
+  resize(); setTimeout(resetView,100);
 })();
 
 // ─── ADD GPS PANEL ───────────────────────────────────────────────────────────
@@ -2272,239 +2261,198 @@ toggleFilter = function(type) {
 
 </script>
 <!-- SETUP WIZARD -->
-<div id="wizard-overlay" class="hidden">
-  <div id="wizard-box">
-    <div class="wiz-header">
-      <div class="wiz-title">⚙ MULTIPLAYER EINRICHTUNG</div>
-      <button class="wiz-close" onclick="closeSetupWizard()">✕</button>
+<div id="wizard-overlay" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,5,15,0.92);align-items:center;justify-content:center;backdrop-filter:blur(4px)">
+  <div style="background:rgba(3,12,25,0.99);border:1px solid rgba(0,200,255,0.3);border-radius:6px;padding:28px;width:420px;max-height:90vh;overflow-y:auto;box-shadow:0 0 80px rgba(0,200,255,0.1);font-family:'Share Tech Mono',monospace">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;border-bottom:1px solid rgba(0,200,255,0.15);padding-bottom:14px">
+      <div style="font-family:'Orbitron',sans-serif;font-size:0.85rem;letter-spacing:3px;color:#00c8ff">⚙ GITHUB EINRICHTUNG</div>
+      <div id="wiz-badge" style="font-size:0.6rem;letter-spacing:2px;padding:3px 10px;border-radius:12px;background:rgba(255,68,68,0.1);color:#ff5533;border:1px solid rgba(255,68,68,0.3)">NICHT VERBUNDEN</div>
     </div>
 
-    <!-- Aktueller Status -->
-    <div class="wiz-step">
-      <div class="wiz-step-title">
-        STATUS
-        <span id="wiz-badge" class="wiz-status-badge badge-none">NICHT KONFIGURIERT</span>
-      </div>
-      <div class="wiz-text" id="wiz-status-text">Konfiguriere GitHub Gist um Koordinaten mit allen Mitspielern zu teilen. Alle Änderungen werden automatisch synchronisiert.</div>
+    <div style="font-size:0.68rem;color:rgba(168,216,234,0.55);line-height:1.7;margin-bottom:18px" id="wiz-info">
+      Verbinde die Karte mit einem GitHub Gist.<br>
+      Die GPS-Daten werden als <code style="color:#00c8ff">se_gps_data.json</code> gespeichert.
     </div>
 
-    <!-- Schritt 1 -->
-    <div class="wiz-step">
-      <div class="wiz-step-title"><span class="wiz-step-num">1</span>GITHUB ACCOUNT</div>
-      <div class="wiz-text">
-        Falls noch kein Account vorhanden:<br>
-        → <a href="https://github.com/signup" target="_blank">github.com/signup</a> (kostenlos, keine Kreditkarte nötig)
+    <!-- TOKEN -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:0.6rem;color:rgba(0,200,255,0.5);letter-spacing:2px;margin-bottom:6px">SCHRITT 1 — GITHUB TOKEN</div>
+      <div style="font-size:0.62rem;color:rgba(168,216,234,0.4);margin-bottom:8px;line-height:1.6">
+        → <a href="https://github.com/settings/tokens/new?scopes=gist&description=SE+Raumkarte" target="_blank" style="color:#00c8ff">github.com/settings/tokens/new</a><br>
+        Scopes: nur <b style="color:#a8d8ea">gist</b> ankreuzen → Token generieren → kopieren
       </div>
-    </div>
-
-    <!-- Schritt 2 -->
-    <div class="wiz-step">
-      <div class="wiz-step-title"><span class="wiz-step-num">2</span>PERSONAL ACCESS TOKEN ERSTELLEN</div>
-      <div class="wiz-text">
-        1. Gehe zu: <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a><br>
-        2. <b>Note:</b> z.B. "SE Raumkarte"<br>
-        3. <b>Expiration:</b> "No expiration" wählen<br>
-        4. Unter <b>Scopes</b> nur <b>gist</b> anhaken ✓<br>
-        5. Auf <b>"Generate token"</b> klicken und Token kopieren
-      </div>
-      <div class="wiz-input-row">
-        <span class="wiz-label">TOKEN</span>
-        <input class="wiz-input" type="password" id="wiz-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
-        <button class="wiz-btn" onclick="toggleTokenVisibility()">👁</button>
-      </div>
-      <div class="wiz-text" style="color:rgba(255,180,0,0.7);font-size:0.65rem;">⚠ Token nur einmal sichtbar! Direkt hier einfügen nach dem Erstellen.</div>
-    </div>
-
-    <!-- Schritt 3 -->
-    <div class="wiz-step">
-      <div class="wiz-step-title"><span class="wiz-step-num">3</span>GIST ERSTELLEN ODER VERBINDEN</div>
-      <div class="wiz-text">
-        <b>Option A:</b> Neues Gist automatisch erstellen (empfohlen für den ersten Spieler):
-      </div>
-      <div class="wiz-btn-row">
-        <button class="wiz-btn primary" onclick="createNewGist()">✦ NEUES GIST ERSTELLEN</button>
-      </div>
-      <div class="wiz-text" style="margin-top:12px">
-        <b>Option B:</b> Vorhandene Gist-ID eingeben (wenn ein Mitspieler schon eins erstellt hat):
-      </div>
-      <div class="wiz-input-row">
-        <span class="wiz-label">GIST ID</span>
-        <input class="wiz-input" type="text" id="wiz-gistid" placeholder="a1b2c3d4e5f6...">
-      </div>
-      <div id="wiz-gist-feedback" class="wiz-feedback"></div>
-    </div>
-
-    <!-- Schritt 4 -->
-    <div class="wiz-step">
-      <div class="wiz-step-title"><span class="wiz-step-num">4</span>SPIELERNAME</div>
-      <div class="wiz-text">Damit Mitspieler sehen wer zuletzt gespeichert hat:</div>
-      <div class="wiz-input-row">
-        <span class="wiz-label">NAME</span>
-        <input class="wiz-input" type="text" id="wiz-playername" placeholder="z.B. GandALF">
+      <div style="display:flex;gap:6px">
+        <input id="wiz-token" type="password" placeholder="ghp_xxxxxxxxxxxx" style="flex:1;background:rgba(0,200,255,0.05);border:1px solid rgba(0,200,255,0.2);color:#00c8ff;font-family:'Share Tech Mono',monospace;font-size:0.72rem;padding:7px 10px;border-radius:3px;outline:none">
+        <button onclick="document.getElementById('wiz-token').type=document.getElementById('wiz-token').type==='password'?'text':'password'" style="background:rgba(0,200,255,0.07);border:1px solid rgba(0,200,255,0.2);color:rgba(0,200,255,0.6);padding:0 10px;border-radius:3px;cursor:pointer;font-size:0.8rem">👁</button>
       </div>
     </div>
 
-    <!-- Gist ID teilen -->
-    <div class="wiz-step" id="wiz-share-section" style="display:none">
-      <div class="wiz-step-title">📋 GIST-ID MIT MITSPIELERN TEILEN</div>
-      <div class="wiz-text">Schicke diese ID deinen Mitspielern – sie geben sie in Schritt 3 ein:</div>
-      <div class="wiz-code" id="wiz-share-id">—</div>
-      <button class="wiz-btn" onclick="copyGistId()">📋 ID KOPIEREN</button>
-    </div>
-
-    <!-- Buttons -->
-    <div class="wiz-step">
-      <div class="wiz-btn-row">
-        <button class="wiz-btn primary" onclick="saveWizardConfig()">✓ SPEICHERN & VERBINDEN</button>
-        <button class="wiz-btn" onclick="testConnection()">⟳ VERBINDUNG TESTEN</button>
-        <button class="wiz-btn danger" onclick="resetWizardConfig()">✕ ZURÜCKSETZEN</button>
+    <!-- GIST ID -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:0.6rem;color:rgba(0,200,255,0.5);letter-spacing:2px;margin-bottom:6px">SCHRITT 2 — GIST ID</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        <input id="wiz-gistid" type="text" placeholder="Gist-ID einfügen oder neu erstellen →" style="flex:1;background:rgba(0,200,255,0.05);border:1px solid rgba(0,200,255,0.2);color:#00c8ff;font-family:'Share Tech Mono',monospace;font-size:0.68rem;padding:7px 10px;border-radius:3px;outline:none">
+        <button onclick="wizCreateGist()" style="background:rgba(0,200,255,0.1);border:1px solid rgba(0,200,255,0.35);color:#00c8ff;font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:1px;padding:0 12px;border-radius:3px;cursor:pointer;white-space:nowrap">+ NEU</button>
       </div>
-      <div id="wiz-main-feedback" class="wiz-feedback"></div>
+      <div id="wiz-gist-feedback" style="font-size:0.62rem;color:#7fff7f;min-height:16px"></div>
     </div>
 
+    <!-- SPIELERNAME -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:0.6rem;color:rgba(0,200,255,0.5);letter-spacing:2px;margin-bottom:6px">SCHRITT 3 — SPIELERNAME</div>
+      <input id="wiz-player" type="text" placeholder="Dein Name (z.B. GandALF_77)" maxlength="20" style="width:100%;background:rgba(0,200,255,0.05);border:1px solid rgba(0,200,255,0.2);color:#00c8ff;font-family:'Share Tech Mono',monospace;font-size:0.72rem;padding:7px 10px;border-radius:3px;outline:none;box-sizing:border-box">
+    </div>
+
+    <!-- BUTTONS -->
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <button onclick="wizSave()" style="background:rgba(0,200,255,0.13);border:1px solid rgba(0,200,255,0.5);color:#00c8ff;font-family:'Orbitron',monospace;font-size:0.65rem;letter-spacing:2px;padding:10px;border-radius:3px;cursor:pointer">✓ SPEICHERN &amp; VERBINDEN</button>
+      <div style="display:flex;gap:8px">
+        <button onclick="wizTest()" style="flex:1;background:rgba(168,216,234,0.05);border:1px solid rgba(168,216,234,0.2);color:rgba(168,216,234,0.6);font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:1px;padding:7px;border-radius:3px;cursor:pointer">⟳ TESTEN</button>
+        <button onclick="wizReset()" style="flex:1;background:rgba(255,68,68,0.05);border:1px solid rgba(255,68,68,0.2);color:rgba(255,68,68,0.6);font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:1px;padding:7px;border-radius:3px;cursor:pointer">✕ ZURÜCKSETZEN</button>
+      </div>
+      <div id="wiz-main-feedback" style="font-size:0.65rem;color:#7fff7f;min-height:18px;text-align:center;padding-top:4px"></div>
+    </div>
   </div>
 </div>
 
 <script>
-// ── Setup Wizard Logic ────────────────────────────────────────────────────────
+// ── WIZARD LOGIC ──────────────────────────────────────────────────────────────
 function openSetupWizard() {
-  loadConfig();
-  document.getElementById('wiz-token').value = gistCfg.token || '';
-  document.getElementById('wiz-gistid').value = gistCfg.gistId || '';
-  document.getElementById('wiz-playername').value = gistCfg.playerName || '';
-  updateWizardStatus();
-  if (gistCfg.gistId) {
-    document.getElementById('wiz-share-section').style.display = 'block';
-    document.getElementById('wiz-share-id').textContent = gistCfg.gistId;
-  }
-  document.getElementById('wizard-overlay').classList.remove('hidden');
+  document.getElementById('wiz-token').value  = cfg.token  || '';
+  document.getElementById('wiz-gistid').value = cfg.gistId || '';
+  document.getElementById('wiz-player').value = cfg.player || '';
+  wizUpdateBadge();
+  const ov=document.getElementById('wizard-overlay');
+  ov.style.display='flex';
 }
-
 function closeSetupWizard() {
-  document.getElementById('wizard-overlay').classList.add('hidden');
+  document.getElementById('wizard-overlay').style.display='none';
 }
-
-function toggleTokenVisibility() {
-  const inp = document.getElementById('wiz-token');
-  inp.type = inp.type === 'password' ? 'text' : 'password';
-}
-
-function updateWizardStatus() {
-  const badge = document.getElementById('wiz-badge');
-  const text = document.getElementById('wiz-status-text');
+function wizUpdateBadge() {
+  const b=document.getElementById('wiz-badge');
   if (isConfigured()) {
-    badge.textContent = '✓ VERBUNDEN';
-    badge.className = 'wiz-status-badge badge-ok';
-    text.textContent = `Verbunden mit Gist ${gistCfg.gistId.substring(0,12)}... • Spieler: ${gistCfg.playerName||'–'} • Auto-Sync alle 30s`;
+    b.textContent='✓ VERBUNDEN';
+    b.style.background='rgba(127,255,127,0.1)'; b.style.color='#7fff7f'; b.style.borderColor='rgba(127,255,127,0.3)';
+    document.getElementById('wiz-info').innerHTML=`Gist: <code style="color:#00c8ff">${cfg.gistId.substring(0,16)}...</code><br>Spieler: <b style="color:#a8d8ea">${cfg.player}</b> · Auto-Sync alle 30s`;
   } else {
-    badge.textContent = 'NICHT KONFIGURIERT';
-    badge.className = 'wiz-status-badge badge-none';
-    text.textContent = 'Konfiguriere GitHub Gist um Koordinaten mit allen Mitspielern zu teilen.';
+    b.textContent='NICHT VERBUNDEN';
+    b.style.background='rgba(255,68,68,0.1)'; b.style.color='#ff5533'; b.style.borderColor='rgba(255,68,68,0.3)';
   }
 }
-
-function wizFeedback(id, msg, ok=true) {
-  const el = document.getElementById(id);
-  el.textContent = msg;
-  el.style.color = ok ? '#7fff7f' : '#ff6666';
-  if (ok) setTimeout(() => el.textContent='', 4000);
+function wizMsg(msg, ok=true) {
+  const el=document.getElementById('wiz-main-feedback');
+  el.textContent=msg; el.style.color=ok?'#7fff7f':'#ff5533';
+}
+function wizGistMsg(msg, ok=true) {
+  const el=document.getElementById('wiz-gist-feedback');
+  el.textContent=msg; el.style.color=ok?'#7fff7f':'#ff5533';
 }
 
-async function createNewGist() {
-  const token = document.getElementById('wiz-token').value.trim();
-  if (!token) { wizFeedback('wiz-gist-feedback','⚠ Bitte zuerst Token eingeben (Schritt 2)',false); return; }
-  wizFeedback('wiz-gist-feedback','⟳ Erstelle Gist...');
+async function wizCreateGist() {
+  const token=document.getElementById('wiz-token').value.trim();
+  if (!token) { wizGistMsg('⚠ Zuerst Token eingeben',false); return; }
+  wizGistMsg('⟳ Erstelle Gist...');
   try {
-    const initData = {
-      version: 1, savedAt: new Date().toISOString(),
-      points: points.map(p => ({ name:p.name, x:p.x, y:p.y, z:p.z, type:p.type, originalType:p.originalType||null }))
-    };
-    const res = await fetch('https://api.github.com/gists', {
-      method: 'POST',
-      headers: { 'Authorization':`token ${token}`, 'Content-Type':'application/json', 'Accept':'application/vnd.github.v3+json' },
-      body: JSON.stringify({
-        description: 'Space Engineers Raumkarte GPS Daten',
-        public: false,
-        files: { 'se_gps_data.json': { content: JSON.stringify(initData, null, 2) } }
+    const r=await fetch('https://api.github.com/gists',{
+      method:'POST',
+      headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},
+      body:JSON.stringify({
+        description:'Space Engineers Raumkarte GPS',
+        public:false,
+        files:{'se_gps_data.json':{content:JSON.stringify({v:2,app:APP_VERSION,points:[]},null,2)}}
       })
     });
-    if (!res.ok) { const e=await res.json(); throw new Error(e.message); }
-    const gist = await res.json();
-    document.getElementById('wiz-gistid').value = gist.id;
-    document.getElementById('wiz-share-section').style.display = 'block';
-    document.getElementById('wiz-share-id').textContent = gist.id;
-    wizFeedback('wiz-gist-feedback', `✓ Gist erstellt! ID: ${gist.id.substring(0,16)}...`);
-  } catch(e) {
-    wizFeedback('wiz-gist-feedback', `⚠ Fehler: ${e.message}`, false);
-  }
+    if (!r.ok){const e=await r.json();throw new Error(e.message);}
+    const gist=await r.json();
+    document.getElementById('wiz-gistid').value=gist.id;
+    wizGistMsg('✓ Gist erstellt! ID: '+gist.id.substring(0,16)+'...');
+  } catch(e){wizGistMsg('⚠ '+e.message,false);}
 }
 
-async function testConnection() {
-  const token = document.getElementById('wiz-token').value.trim();
-  const gistId = document.getElementById('wiz-gistid').value.trim();
-  if (!token || !gistId) { wizFeedback('wiz-main-feedback','⚠ Token und Gist-ID eingeben',false); return; }
-  wizFeedback('wiz-main-feedback','⟳ Teste Verbindung...');
+async function wizTest() {
+  const token=document.getElementById('wiz-token').value.trim();
+  const gistId=document.getElementById('wiz-gistid').value.trim();
+  if (!token||!gistId){wizMsg('⚠ Token und Gist-ID eingeben',false);return;}
+  wizMsg('⟳ Teste...');
   try {
-    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-      headers: { 'Authorization':`token ${token}`, 'Accept':'application/vnd.github.v3+json' }
+    const r=await fetch('https://api.github.com/gists/'+gistId,{
+      headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}
     });
-    if (!res.ok) { const e=await res.json(); throw new Error(e.message); }
-    const gist = await res.json();
-    const hasFile = !!gist.files['se_gps_data.json'];
-    wizFeedback('wiz-main-feedback', `✓ Verbindung OK! ${hasFile?'Datei gefunden.':'⚠ Datei se_gps_data.json nicht gefunden – neues Gist erstellen.'}`);
-  } catch(e) {
-    wizFeedback('wiz-main-feedback', `⚠ Fehler: ${e.message}`, false);
-  }
+    if (!r.ok){const e=await r.json();throw new Error(e.message);}
+    const g=await r.json();
+    const hasFile=!!g.files['se_gps_data.json'];
+    wizMsg('✓ Verbindung OK! Gist gefunden'+(hasFile?' · Datei vorhanden':' · Datei fehlt noch (wird erstellt)'));
+  } catch(e){wizMsg('⚠ '+e.message,false);}
 }
 
-function saveWizardConfig() {
-  const token = document.getElementById('wiz-token').value.trim();
+async function wizSave() {
+  const token  = document.getElementById('wiz-token').value.trim();
   const gistId = document.getElementById('wiz-gistid').value.trim();
-  const playerName = document.getElementById('wiz-playername').value.trim() || 'Spieler';
-  if (!token) { wizFeedback('wiz-main-feedback','⚠ Token fehlt',false); return; }
-  if (!gistId) { wizFeedback('wiz-main-feedback','⚠ Gist-ID fehlt',false); return; }
-  gistCfg = { token, gistId, playerName }; saveConfig();
+  const player = document.getElementById('wiz-player').value.trim() || 'Spieler';
+  if (!token)  {wizMsg('⚠ Token fehlt',false);return;}
+  if (!gistId) {wizMsg('⚠ Gist-ID fehlt — zuerst Gist erstellen',false);return;}
+  cfg = { token, gistId, player };
   saveConfig();
-  updateWizardStatus();
-  wizFeedback('wiz-main-feedback','✓ Gespeichert! Lade Daten...');
-  setTimeout(async () => {
-    const gistPoints = await loadFromGist();
-    if (gistPoints && gistPoints.length > 0) {
-      points.length = 0;
-      points.push(...gistPoints);
-      station = points.find(p => p.type === 'station') || null;
+  wizMsg('⟳ Verbinde und lade Daten...');
+  try {
+    const loaded = await doLoad();
+    if (loaded && loaded.length > 0) {
+      points.length=0; points.push(...loaded);
+      syncHash=makeHash(loaded);
+      station=points.find(p=>p.type==='station')||null;
       draw();
-      if (currentMode==='3d'&&is3dInit) rebuild3DPoints();
+      if(currentMode==='3d'&&is3dInit) rebuild3DPoints();
+      setSaveStatus('saved','✓ '+points.length+' PUNKTE GELADEN');
+    } else {
+      // Neues Gist → aktuelle Punkte hochladen
+      await doSave();
+      setSaveStatus('saved','✓ Initialisiert');
     }
     startAutoSync();
-    setSaveStatus('saved', `✓ ${points.length} PUNKTE GELADEN`);
-    setTimeout(closeSetupWizard, 1000);
-  }, 500);
+    const btn=document.getElementById('btn-player');
+    if(btn) btn.textContent='👤 '+player.toUpperCase();
+    wizUpdateBadge();
+    wizMsg('✓ Verbunden! Fenster kann geschlossen werden.');
+    setTimeout(closeSetupWizard, 2000);
+  } catch(e) {
+    wizMsg('⚠ Fehler: '+e.message,false);
+  }
 }
 
-function resetWizardConfig() {
-  if (!confirm('Verbindung trennen und Konfiguration löschen?')) return;
-  gistCfg = { token:'', gistId:'', playerName:'Spieler' }; saveConfig();
-  saveConfig();
+function wizReset() {
+  if(!confirm('Verbindung trennen und Konfiguration löschen?')) return;
+  cfg={token:'',gistId:'',player:'Spieler'}; saveConfig();
   stopAutoSync();
   document.getElementById('wiz-token').value='';
   document.getElementById('wiz-gistid').value='';
-  document.getElementById('wiz-playername').value='';
-  document.getElementById('wiz-share-section').style.display='none';
-  updateWizardStatus();
+  document.getElementById('wiz-player').value='';
+  setConnStatus(false,'Nicht konfiguriert');
   setSaveStatus('error','⚠ NICHT KONFIGURIERT – KLICK ⚙');
-  wizFeedback('wiz-main-feedback','Konfiguration zurückgesetzt');
+  wizUpdateBadge();
+  wizMsg('Konfiguration zurückgesetzt');
 }
 
-function copyGistId() {
-  const id = gistCfg.gistId || document.getElementById('wiz-gistid').value.trim();
-  if (!id) return;
-  navigator.clipboard.writeText(id).then(() => wizFeedback('wiz-main-feedback','✓ ID kopiert!')).catch(()=>{});
+// Player Dialog
+function openPlayerDialog() {
+  document.getElementById('inp-playername').value=cfg.player||'';
+  document.getElementById('player-dialog').style.display='flex';
+  setTimeout(()=>document.getElementById('inp-playername').focus(),50);
 }
-
-// Close on overlay click
-document.getElementById('wizard-overlay').addEventListener('click', e => {
-  if (e.target === document.getElementById('wizard-overlay')) closeSetupWizard();
+function closePlayerDialog() { document.getElementById('player-dialog').style.display='none'; }
+function savePlayerName() {
+  const n=document.getElementById('inp-playername').value.trim();
+  if(!n) return;
+  cfg.player=n; saveConfig();
+  const btn=document.getElementById('btn-player');
+  if(btn) btn.textContent='👤 '+n.toUpperCase();
+  closePlayerDialog();
+  showToast('✓ Spielername: '+n);
+}
+document.getElementById('player-dialog').addEventListener('click',e=>{
+  if(e.target===document.getElementById('player-dialog')) closePlayerDialog();
+});
+document.getElementById('wizard-overlay').addEventListener('click',e=>{
+  if(e.target===document.getElementById('wizard-overlay')) closeSetupWizard();
 });
 </script>
 
