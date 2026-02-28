@@ -1,0 +1,2468 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Raumkarte – Space Engineers</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --bg: #050a12;
+    --grid: rgba(0,200,255,0.06);
+    --accent: #00c8ff;
+    --accent2: #ff6b35;
+    --text: #a8d8ea;
+    --panel: rgba(5,20,35,0.92);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* Starfield */
+  #stars {
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.8) 0%, transparent 100%),
+      radial-gradient(1px 1px at 30% 80%, rgba(255,255,255,0.6) 0%, transparent 100%),
+      radial-gradient(1px 1px at 50% 50%, rgba(255,255,255,0.9) 0%, transparent 100%),
+      radial-gradient(1px 1px at 70% 30%, rgba(255,255,255,0.7) 0%, transparent 100%),
+      radial-gradient(1px 1px at 90% 60%, rgba(255,255,255,0.5) 0%, transparent 100%),
+      radial-gradient(1px 1px at 15% 70%, rgba(255,255,255,0.6) 0%, transparent 100%),
+      radial-gradient(1px 1px at 85% 15%, rgba(255,255,255,0.8) 0%, transparent 100%),
+      radial-gradient(1px 1px at 45% 90%, rgba(255,255,255,0.4) 0%, transparent 100%),
+      radial-gradient(1px 1px at 60% 10%, rgba(255,255,255,0.7) 0%, transparent 100%),
+      radial-gradient(2px 2px at 25% 45%, rgba(200,220,255,0.5) 0%, transparent 100%),
+      radial-gradient(2px 2px at 75% 75%, rgba(200,220,255,0.4) 0%, transparent 100%);
+  }
+
+  /* Header */
+  #header {
+    position: fixed; top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 14px 24px;
+    background: linear-gradient(180deg, rgba(0,10,20,0.95) 0%, transparent 100%);
+    display: flex; align-items: center; gap: 20px;
+    border-bottom: 1px solid rgba(0,200,255,0.15);
+  }
+  #header h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(0,200,255,0.5);
+  }
+  #header .sub {
+    font-size: 0.7rem;
+    color: rgba(168,216,234,0.5);
+    letter-spacing: 2px;
+  }
+  #coords-display {
+    margin-left: auto;
+    font-size: 0.7rem;
+    color: rgba(0,200,255,0.6);
+    letter-spacing: 1px;
+  }
+
+  #mode-tabs {
+    display: flex; gap: 4px; margin-left: 20px;
+  }
+  .mode-tab {
+    background: rgba(0,200,255,0.04);
+    border: 1px solid rgba(0,200,255,0.2);
+    color: rgba(168,216,234,0.5);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.62rem;
+    letter-spacing: 2px;
+    padding: 5px 14px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+  }
+  .mode-tab.active {
+    background: rgba(0,200,255,0.12);
+    border-color: rgba(0,200,255,0.5);
+    color: var(--accent);
+    box-shadow: 0 0 12px rgba(0,200,255,0.2);
+  }
+  .mode-tab:hover { background: rgba(0,200,255,0.08); color: var(--accent); }
+
+  #hint3d {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+    z-index: 50;
+    font-size: 0.62rem;
+    color: rgba(168,216,234,0.35);
+    letter-spacing: 1px;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* Canvas container */
+  #map-container {
+    position: fixed; inset: 0;
+    z-index: 10;
+    cursor: grab;
+  }
+  #map-container.grabbing { cursor: grabbing; }
+  canvas { display: block; width: 100%; height: 100%; }
+
+  /* Draggable panels */
+  .drag-handle {
+    cursor: move !important;
+    user-select: none;
+  }
+  .drag-handle::before {
+    content: '⠿';
+    margin-right: 6px;
+    opacity: 0.4;
+    font-size: 0.9rem;
+    vertical-align: middle;
+  }
+  .drag-handle:hover::before { opacity: 0.8; }
+  .panel-dragging {
+    box-shadow: 0 0 40px rgba(0,200,255,0.25), 0 8px 32px rgba(0,0,0,0.8) !important;
+    border-color: rgba(0,200,255,0.4) !important;
+    z-index: 999 !important;
+    transition: none !important;
+  }
+
+  /* Info Panel */
+  #info-panel {
+    position: fixed; right: 20px; top: 70px;
+    width: 280px;
+    background: var(--panel);
+    border: 1px solid rgba(0,200,255,0.2);
+    border-radius: 4px;
+    z-index: 200;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(0,0,0,0.7), inset 0 0 30px rgba(0,200,255,0.02);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+  #info-panel.hidden { opacity: 0; pointer-events: none; transform: scale(0.97); }
+  #info-panel-header {
+    padding: 12px 16px;
+    background: rgba(0,200,255,0.08);
+    border-bottom: 1px solid rgba(0,200,255,0.15);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    color: var(--accent);
+  }
+  #info-content { padding: 16px; }
+  #info-name {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.85rem;
+    color: #fff;
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+  .info-row {
+    display: flex; justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 0.68rem;
+    border-bottom: 1px solid rgba(0,200,255,0.05);
+    padding-bottom: 5px;
+  }
+  .info-label { color: rgba(168,216,234,0.5); }
+  .info-val { color: var(--accent); font-weight: bold; }
+  #info-dist { margin-top: 10px; padding: 8px; background: rgba(0,200,255,0.05); border-radius: 2px; font-size: 0.68rem; }
+  #info-dist span { color: var(--accent2); font-size: 0.9rem; font-family: 'Orbitron', sans-serif; }
+
+  /* Legend */
+  #legend {
+    position: fixed; left: 20px; bottom: 20px;
+    z-index: 200;
+    background: var(--panel);
+    border: 1px solid rgba(0,200,255,0.15);
+    border-radius: 4px;
+    padding: 14px;
+    min-width: 200px;
+  }
+  #legend h3 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.6rem;
+    letter-spacing: 3px;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px; font-size: 0.68rem;
+  }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Controls */
+  #controls {
+    position: fixed; left: 20px; top: 70px;
+    z-index: 200;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .ctrl-btn {
+    background: var(--panel);
+    border: 1px solid rgba(0,200,255,0.2);
+    color: var(--accent);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.8rem;
+    width: 36px; height: 36px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+  }
+  .ctrl-btn:hover {
+    background: rgba(0,200,255,0.1);
+    box-shadow: 0 0 10px rgba(0,200,255,0.3);
+  }
+
+  /* View toggle */
+  #view-toggle {
+    position: fixed; left: 20px; top: 200px;
+    z-index: 200;
+  }
+  .view-btn {
+    display: block;
+    background: var(--panel);
+    border: 1px solid rgba(0,200,255,0.2);
+    color: rgba(168,216,234,0.6);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    padding: 6px 10px;
+    cursor: pointer;
+    width: 80px;
+    text-align: center;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+  .view-btn.active {
+    color: var(--accent);
+    background: rgba(0,200,255,0.08);
+    border-color: rgba(0,200,255,0.4);
+  }
+  .view-btn:hover { background: rgba(0,200,255,0.06); }
+
+  /* Filter */
+  #filter-panel {
+    position: fixed; left: 20px; top: 260px;
+    z-index: 200;
+    background: var(--panel);
+    border: 1px solid rgba(0,200,255,0.15);
+    border-radius: 4px;
+    padding: 10px;
+    width: 160px;
+  }
+  #filter-panel h4 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.58rem;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .filter-item {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 4px; font-size: 0.65rem; cursor: pointer;
+  }
+  .filter-item input { accent-color: var(--accent); cursor: pointer; }
+
+  /* Search */
+  #search-box {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 300;
+    display: flex; align-items: center; gap: 0;
+    width: 340px;
+  }
+  #search-input {
+    flex: 1;
+    background: rgba(0,10,20,0.92);
+    border: 1px solid rgba(0,200,255,0.3);
+    border-right: none;
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.78rem;
+    padding: 7px 12px;
+    border-radius: 3px 0 0 3px;
+    outline: none;
+    letter-spacing: 1px;
+  }
+  #search-input:focus { border-color: rgba(0,200,255,0.6); background: rgba(0,15,30,0.97); }
+  #search-input::placeholder { color: rgba(0,200,255,0.25); }
+  #search-clear {
+    background: rgba(0,10,20,0.92);
+    border: 1px solid rgba(0,200,255,0.3);
+    border-left: none;
+    border-right: none;
+    color: rgba(0,200,255,0.4);
+    font-size: 0.85rem;
+    padding: 7px 8px;
+    cursor: pointer;
+    line-height: 1;
+    display: none;
+  }
+  #search-clear:hover { color: var(--accent); }
+  #search-btn {
+    background: rgba(0,200,255,0.1);
+    border: 1px solid rgba(0,200,255,0.3);
+    color: var(--accent);
+    font-family: 'Orbitron', monospace;
+    font-size: 0.6rem;
+    padding: 7px 12px;
+    cursor: pointer;
+    border-radius: 0 3px 3px 0;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  #search-btn:hover { background: rgba(0,200,255,0.2); }
+  #search-results {
+    position: fixed; top: 48px; left: 50%; transform: translateX(-50%);
+    z-index: 300;
+    width: 340px;
+    background: rgba(0,10,20,0.97);
+    border: 1px solid rgba(0,200,255,0.2);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 260px;
+    overflow-y: auto;
+    display: none;
+  }
+  #search-results::-webkit-scrollbar { width: 4px; }
+  #search-results::-webkit-scrollbar-track { background: transparent; }
+  #search-results::-webkit-scrollbar-thumb { background: rgba(0,200,255,0.2); border-radius: 2px; }
+  .search-result-item {
+    padding: 8px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(0,200,255,0.06);
+    display: flex; align-items: center; gap: 10px;
+    transition: background 0.15s;
+  }
+  .search-result-item:hover { background: rgba(0,200,255,0.08); }
+  .search-result-item:last-child { border-bottom: none; }
+  .sr-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sr-name { font-size: 0.72rem; color: #fff; flex: 1; }
+  .sr-num { font-size: 0.62rem; color: rgba(0,200,255,0.5); }
+  .sr-dist { font-size: 0.6rem; color: rgba(168,216,234,0.4); white-space: nowrap; }
+  #search-count {
+    padding: 5px 14px;
+    font-size: 0.6rem;
+    color: rgba(0,200,255,0.4);
+    border-bottom: 1px solid rgba(0,200,255,0.08);
+    letter-spacing: 1px;
+  }
+
+  /* Add GPS Panel */
+  #add-panel {
+    position: fixed; right: 20px; bottom: 20px;
+    width: 320px;
+    background: var(--panel);
+    border: 1px solid rgba(0,200,255,0.2);
+    border-radius: 4px;
+    z-index: 200;
+    overflow: hidden;
+    box-shadow: 0 0 30px rgba(0,0,0,0.7);
+  }
+  #add-panel-header {
+    padding: 10px 16px;
+    background: rgba(0,200,255,0.08);
+    border-bottom: 1px solid rgba(0,200,255,0.15);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.62rem;
+    letter-spacing: 3px;
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+  }
+  #add-panel-header:hover { background: rgba(0,200,255,0.12); }
+  #add-panel-body {
+    padding: 14px;
+    display: none;
+  }
+  #add-panel-body.open { display: block; }
+  .gps-input-row {
+    display: flex; gap: 6px; margin-bottom: 8px; align-items: center;
+  }
+  .gps-input-row label {
+    font-size: 0.65rem;
+    color: rgba(168,216,234,0.6);
+    width: 14px; flex-shrink: 0;
+    letter-spacing: 1px;
+  }
+  .gps-input-row input {
+    flex: 1;
+    background: rgba(0,200,255,0.05);
+    border: 1px solid rgba(0,200,255,0.2);
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    padding: 5px 8px;
+    border-radius: 3px;
+    outline: none;
+    width: 100%;
+  }
+  .gps-input-row input:focus {
+    border-color: rgba(0,200,255,0.5);
+    background: rgba(0,200,255,0.08);
+  }
+  .gps-input-row input::placeholder { color: rgba(0,200,255,0.25); }
+  #gps-raw-input {
+    width: 100%;
+    background: rgba(0,200,255,0.05);
+    border: 1px solid rgba(0,200,255,0.2);
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+    padding: 7px 8px;
+    border-radius: 3px;
+    outline: none;
+    resize: vertical;
+    min-height: 56px;
+    margin-bottom: 8px;
+  }
+  #gps-raw-input:focus { border-color: rgba(0,200,255,0.5); background: rgba(0,200,255,0.08); }
+  #gps-raw-input::placeholder { color: rgba(0,200,255,0.25); }
+  .tab-row {
+    display: flex; margin-bottom: 12px; gap: 0;
+  }
+  .tab-btn {
+    flex: 1;
+    background: rgba(0,200,255,0.03);
+    border: 1px solid rgba(0,200,255,0.15);
+    color: rgba(168,216,234,0.5);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    padding: 5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+  .tab-btn.active {
+    background: rgba(0,200,255,0.1);
+    color: var(--accent);
+    border-color: rgba(0,200,255,0.35);
+  }
+  .tab-btn:first-child { border-radius: 3px 0 0 3px; }
+  .tab-btn:last-child { border-radius: 0 3px 3px 0; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .btn-add-gps {
+    width: 100%;
+    background: rgba(0,200,255,0.1);
+    border: 1px solid rgba(0,200,255,0.3);
+    color: var(--accent);
+    font-family: 'Orbitron', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 2px;
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+    margin-top: 2px;
+  }
+  .btn-add-gps:hover {
+    background: rgba(0,200,255,0.2);
+    box-shadow: 0 0 12px rgba(0,200,255,0.2);
+  }
+  #add-feedback {
+    font-size: 0.65rem;
+    text-align: center;
+    padding: 5px 0 0;
+    min-height: 20px;
+    transition: all 0.3s;
+  }
+  .add-type-row {
+    display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap;
+  }
+  .type-chip {
+    font-size: 0.6rem;
+    padding: 3px 8px;
+    border-radius: 20px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    opacity: 0.6;
+    transition: all 0.2s;
+    font-family: 'Share Tech Mono', monospace;
+  }
+  .type-chip.selected { opacity: 1; border-color: currentColor; }
+  .type-chip:hover { opacity: 0.9; }
+
+  .btn-delete {
+    width: 100%;
+    margin-top: 6px;
+    background: rgba(255,68,68,0.05);
+    border: 1px solid rgba(255,68,68,0.2);
+    color: rgba(255,68,68,0.7);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    padding: 7px;
+    cursor: pointer;
+    border-radius: 3px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .btn-delete:hover {
+    background: rgba(255,68,68,0.12);
+    border-color: rgba(255,68,68,0.45);
+    color: #ff6666;
+    box-shadow: 0 0 10px rgba(255,68,68,0.15);
+  }
+  .btn-delete-confirm {
+    flex: 1;
+    background: rgba(255,68,68,0.15);
+    border: 1px solid rgba(255,68,68,0.4);
+    color: #ff6666;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    padding: 6px;
+    cursor: pointer;
+    border-radius: 3px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .btn-delete-confirm:hover { background: rgba(255,68,68,0.25); }
+  .btn-delete-cancel {
+    flex: 1;
+    background: rgba(0,200,255,0.05);
+    border: 1px solid rgba(0,200,255,0.2);
+    color: rgba(168,216,234,0.7);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    padding: 6px;
+    cursor: pointer;
+    border-radius: 3px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .btn-delete-cancel:hover { background: rgba(0,200,255,0.1); color: var(--accent); }
+  #delete-toast {
+    position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+    z-index: 500;
+    background: rgba(5,20,35,0.97);
+    border: 1px solid rgba(255,68,68,0.4);
+    color: #ff8080;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.72rem;
+    padding: 10px 20px;
+    border-radius: 4px;
+    letter-spacing: 1px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    white-space: nowrap;
+  }
+  #delete-toast.show { opacity: 1; }
+
+  .btn-erschoepft {
+    flex: 1;
+    background: rgba(255,68,68,0.08);
+    border: 1px solid rgba(255,68,68,0.3);
+    color: #ff4444;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    padding: 7px 6px;
+    cursor: pointer;
+    border-radius: 3px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn-erschoepft:hover { background: rgba(255,68,68,0.18); box-shadow: 0 0 10px rgba(255,68,68,0.2); }
+  .btn-erschoepft.active {
+    background: rgba(255,68,68,0.2);
+    border-color: rgba(255,68,68,0.6);
+    color: #ff8080;
+    box-shadow: 0 0 8px rgba(255,68,68,0.3);
+  }
+
+  .btn-export-single {
+    width: 100%;
+    margin-top: 10px;
+    background: rgba(0,200,255,0.07);
+    border: 1px solid rgba(0,200,255,0.25);
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    padding: 7px;
+    cursor: pointer;
+    border-radius: 3px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .btn-export-single:hover { background: rgba(0,200,255,0.15); box-shadow: 0 0 10px rgba(0,200,255,0.2); }
+  #copy-single-feedback {
+    font-size: 0.62rem; text-align: center; padding: 4px 0 0;
+    min-height: 18px; color: #7fff7f; transition: all 0.3s;
+  }
+  .btn-export-all {
+    width: 100%;
+    background: rgba(0,200,255,0.07);
+    border: 1px solid rgba(0,200,255,0.25);
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    padding: 6px;
+    cursor: pointer;
+    border-radius: 3px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    display: block;
+  }
+  .btn-export-all:hover { background: rgba(0,200,255,0.15); box-shadow: 0 0 10px rgba(0,200,255,0.15); }
+  #copy-all-feedback {
+    font-size: 0.62rem; text-align: center; padding: 4px 0 0;
+    min-height: 16px; color: #7fff7f;
+  }
+
+  /* ── Setup Wizard ─────────────────────────────────────────────────────── */
+  #wizard-overlay {
+    position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,5,15,0.92);
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  #wizard-overlay.hidden { display: none; }
+  #wizard-box {
+    background: rgba(5,18,32,0.98);
+    border: 1px solid rgba(0,200,255,0.3);
+    border-radius: 6px;
+    width: min(520px, 95vw);
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 0 60px rgba(0,200,255,0.15), 0 20px 60px rgba(0,0,0,0.8);
+  }
+  #wizard-box::-webkit-scrollbar { width: 4px; }
+  #wizard-box::-webkit-scrollbar-thumb { background: rgba(0,200,255,0.2); border-radius: 2px; }
+  .wiz-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid rgba(0,200,255,0.1);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .wiz-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.9rem; letter-spacing: 3px; color: #00c8ff;
+    text-shadow: 0 0 20px rgba(0,200,255,0.4);
+  }
+  .wiz-close {
+    background: none; border: none; color: rgba(168,216,234,0.4);
+    font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 3px;
+    transition: all 0.2s;
+  }
+  .wiz-close:hover { color: #fff; background: rgba(255,255,255,0.05); }
+  .wiz-step { padding: 20px 24px; border-bottom: 1px solid rgba(0,200,255,0.06); }
+  .wiz-step:last-child { border-bottom: none; }
+  .wiz-step-num {
+    display: inline-block;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(0,200,255,0.12); border: 1px solid rgba(0,200,255,0.3);
+    color: #00c8ff; font-size: 0.65rem; font-family: 'Orbitron', sans-serif;
+    text-align: center; line-height: 21px; margin-right: 10px; flex-shrink: 0;
+  }
+  .wiz-step-title {
+    font-family: 'Orbitron', sans-serif; font-size: 0.72rem;
+    letter-spacing: 2px; color: #fff; margin-bottom: 10px;
+    display: flex; align-items: center;
+  }
+  .wiz-text { font-size: 0.72rem; color: rgba(168,216,234,0.7); line-height: 1.7; margin-bottom: 10px; }
+  .wiz-text a { color: #00c8ff; text-decoration: none; }
+  .wiz-text a:hover { text-decoration: underline; }
+  .wiz-input-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .wiz-label { font-size: 0.65rem; color: rgba(168,216,234,0.5); width: 90px; flex-shrink: 0; letter-spacing: 1px; }
+  .wiz-input {
+    flex: 1; background: rgba(0,200,255,0.05); border: 1px solid rgba(0,200,255,0.2);
+    color: #00c8ff; font-family: 'Share Tech Mono', monospace; font-size: 0.72rem;
+    padding: 7px 10px; border-radius: 3px; outline: none;
+  }
+  .wiz-input:focus { border-color: rgba(0,200,255,0.5); background: rgba(0,200,255,0.08); }
+  .wiz-input::placeholder { color: rgba(0,200,255,0.25); }
+  .wiz-btn-row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .wiz-btn {
+    background: rgba(0,200,255,0.1); border: 1px solid rgba(0,200,255,0.3);
+    color: #00c8ff; font-family: 'Orbitron', monospace; font-size: 0.62rem;
+    letter-spacing: 2px; padding: 8px 16px; cursor: pointer; border-radius: 3px;
+    transition: all 0.2s;
+  }
+  .wiz-btn:hover { background: rgba(0,200,255,0.2); box-shadow: 0 0 12px rgba(0,200,255,0.2); }
+  .wiz-btn.primary { background: rgba(0,200,255,0.15); border-color: rgba(0,200,255,0.5); }
+  .wiz-btn.danger { background: rgba(255,68,68,0.08); border-color: rgba(255,68,68,0.3); color: #ff6666; }
+  .wiz-btn.danger:hover { background: rgba(255,68,68,0.18); }
+  .wiz-feedback { font-size: 0.68rem; margin-top: 8px; min-height: 20px; transition: all 0.3s; }
+  .wiz-code {
+    background: rgba(0,0,0,0.4); border: 1px solid rgba(0,200,255,0.1);
+    border-radius: 3px; padding: 8px 12px; font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem; color: rgba(168,216,234,0.8); margin: 8px 0;
+    word-break: break-all;
+  }
+  .wiz-status-badge {
+    display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.62rem;
+    font-family: 'Share Tech Mono', monospace; letter-spacing: 1px; margin-left: 8px;
+  }
+  .badge-ok { background: rgba(127,255,127,0.12); border: 1px solid rgba(127,255,127,0.3); color: #7fff7f; }
+  .badge-err { background: rgba(255,68,68,0.1); border: 1px solid rgba(255,68,68,0.3); color: #ff6666; }
+  .badge-none { background: rgba(168,216,234,0.07); border: 1px solid rgba(168,216,234,0.15); color: rgba(168,216,234,0.5); }
+
+  #scan-line {
+    position: fixed; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0,200,255,0.4), transparent);
+    z-index: 5;
+    pointer-events: none;
+    animation: scan 8s linear infinite;
+  }
+  @keyframes scan {
+    0% { top: 60px; opacity: 1; }
+    95% { opacity: 0.3; }
+    100% { top: 100vh; opacity: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="stars"></div>
+<div id="scan-line"></div>
+
+<div id="header">
+  <div>
+    <h1>NAVIGATION CHART</h1>
+    <div class="sub">SPACE ENGINEERS // ASTEROID BELT SURVEY</div>
+  </div>
+  <div id="mode-tabs">
+    <button class="mode-tab active" id="tab-2d" onclick="setMode('2d')">2D KARTE</button>
+    <button class="mode-tab" id="tab-3d" onclick="setMode('3d')">3D RAUM</button>
+  </div>
+  <div id="save-status" style="font-size:0.62rem;letter-spacing:1px;transition:color 0.3s;min-width:220px;text-align:center;"></div>
+  <button onclick="openSetupWizard()" title="Multiplayer Einrichtung" style="background:rgba(0,200,255,0.07);border:1px solid rgba(0,200,255,0.2);color:rgba(0,200,255,0.6);font-size:1rem;width:32px;height:32px;border-radius:3px;cursor:pointer;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.color='#00c8ff';this.style.background='rgba(0,200,255,0.15)'" onmouseout="this.style.color='rgba(0,200,255,0.6)';this.style.background='rgba(0,200,255,0.07)'">⚙</button>
+  <div id="coords-display">CURSOR: —</div>
+</div>
+
+<!-- SEARCH -->
+<div id="search-box">
+  <input type="text" id="search-input" placeholder="Suche: Name, Ressource, Nummer..." autocomplete="off" oninput="onSearch()" onkeydown="onSearchKey(event)">
+  <button id="search-clear" onclick="clearSearch()">✕</button>
+  <button id="search-btn" onclick="onSearch()">SUCHE</button>
+</div>
+<div id="search-results"></div>
+
+<div id="map-container">
+  <canvas id="mapCanvas"></canvas>
+</div>
+
+<!-- 3D Container -->
+<div id="map3d-container" style="display:none;position:fixed;inset:0;z-index:10;">
+  <canvas id="map3dCanvas" style="width:100%;height:100%;display:block;"></canvas>
+  <div id="hint3d">🖱 Linksklick+Ziehen = Drehen &nbsp;|&nbsp; Rechtsklick+Ziehen = Schwenken &nbsp;|&nbsp; Scroll = Zoom &nbsp;|&nbsp; Klick auf Punkt = Details</div>
+</div>
+
+<div id="controls">
+  <button class="ctrl-btn" onclick="zoom(1.2)" title="Zoom In">+</button>
+  <button class="ctrl-btn" onclick="zoom(0.8)" title="Zoom Out">−</button>
+  <button class="ctrl-btn" onclick="resetView()" title="Reset" style="font-size:0.55rem;letter-spacing:0">RST</button>
+</div>
+
+<div id="view-toggle">
+  <button class="view-btn active" id="btn-xy" onclick="setView('xy')">X / Y</button>
+  <button class="view-btn" id="btn-xz" onclick="setView('xz')">X / Z</button>
+  <button class="view-btn" id="btn-yz" onclick="setView('yz')">Y / Z</button>
+</div>
+
+<div id="filter-panel">
+  <h4 class="drag-handle">FILTER</h4>
+  <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('eis')"> <span style="color:#75c9f1">● Eis / Ice</span></label>
+  <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('metall')"> <span style="color:#f1bf75">● Metalle</span></label>
+  <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('edel')"> <span style="color:#f1d875">● Edelmetalle</span></label>
+  <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('spezial')"> <span style="color:#f175b4">● Spezial</span></label>
+  <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('station')"> <span style="color:#7fff7f">● Station</span></label>
+  <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('unbekannt')"> <span style="color:#888">● Unbekannt</span></label>
+  <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('erschoepft')"> <span style="color:#ff4444">⊘ Erschöpft</span></label>
+</div>
+
+<div id="info-panel" class="hidden">
+  <div id="info-panel-header" class="drag-handle">// OBJEKT DETAILS</div>
+  <div id="info-content">
+    <div id="info-name">—</div>
+    <div class="info-row"><span class="info-label">X</span><span class="info-val" id="ix">—</span></div>
+    <div class="info-row"><span class="info-label">Y</span><span class="info-val" id="iy">—</span></div>
+    <div class="info-row"><span class="info-label">Z</span><span class="info-val" id="iz">—</span></div>
+    <div class="info-row"><span class="info-label">TYP</span><span class="info-val" id="itype">—</span></div>
+    <div class="info-row"><span class="info-label">STATUS</span><span class="info-val" id="istatus">Aktiv</span></div>
+    <div id="info-dist">Entfernung zur Station:<br><span id="idist">—</span> km</div>
+    <!-- KOMMENTAR -->
+    <div style="margin-top:10px">
+      <div style="font-size:0.6rem;color:rgba(168,216,234,0.45);letter-spacing:1px;margin-bottom:4px">// KOMMENTAR</div>
+      <textarea id="info-comment"
+        placeholder="Notiz zu diesem Punkt..."
+        oninput="markCommentDirty()"
+        style="width:100%;height:56px;background:rgba(0,200,255,0.04);border:1px solid rgba(0,200,255,0.15);border-radius:3px;color:#a8d8ea;font-family:'Share Tech Mono',monospace;font-size:0.68rem;padding:6px 8px;resize:none;outline:none;line-height:1.5;transition:border-color 0.2s;"
+        onfocus="this.style.borderColor='rgba(0,200,255,0.4)'"
+        onblur="this.style.borderColor='rgba(0,200,255,0.15)'"
+      ></textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+        <div id="comment-status" style="font-size:0.6rem;color:rgba(127,255,127,0.7);letter-spacing:1px"></div>
+        <button id="btn-save-comment" onclick="saveComment()"
+          style="background:rgba(0,200,255,0.1);border:1px solid rgba(0,200,255,0.3);color:#00c8ff;font-family:'Share Tech Mono',monospace;font-size:0.6rem;letter-spacing:1px;padding:3px 10px;border-radius:3px;cursor:pointer;opacity:0.4;transition:all 0.2s"
+        >💾 SPEICHERN</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:4px">
+      <button id="btn-erschoepft" class="btn-erschoepft" onclick="toggleErschoepft()">⊘ ERSCHÖPFT</button>
+      <button class="btn-export-single" style="flex:1;margin-top:0" onclick="exportSingle()">📋 KOPIEREN</button>
+    </div>
+    <div id="delete-confirm" style="display:none;margin-top:8px;background:rgba(255,68,68,0.07);border:1px solid rgba(255,68,68,0.25);border-radius:3px;padding:8px">
+      <div style="font-size:0.65rem;color:#ff8080;margin-bottom:7px;letter-spacing:1px">Punkt wirklich löschen?</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-delete-confirm" onclick="confirmDelete()">✓ JA, LÖSCHEN</button>
+        <button class="btn-delete-cancel" onclick="cancelDelete()">✕ ABBRECHEN</button>
+      </div>
+    </div>
+    <button id="btn-delete" class="btn-delete" onclick="askDelete()">🗑 KOORDINATE LÖSCHEN</button>
+    <div id="copy-single-feedback"></div>
+  </div>
+</div>
+
+<!-- Delete toast -->
+<div id="delete-toast"></div>
+
+<div id="legend">
+  <h3 class="drag-handle">LEGENDE</h3>
+  <div class="legend-item"><div class="legend-dot" style="background:#7fff7f;box-shadow:0 0 6px #7fff7f"></div>Raumstation (Origin)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#75c9f1"></div>Eis / Ice</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f1bf75"></div>Metalle (Fe, Ni, Co...)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f1d875"></div>Edelmetalle (Au, Ag, Pt...)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#f175b4"></div>Spezial (Ti, W, Ta, Li...)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#888"></div>Unbekannt / Leer</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#ff4444;opacity:0.6"></div><span style="color:#ff4444">Erschöpft</span></div>
+  <div style="margin-top:8px;font-size:0.6rem;color:rgba(168,216,234,0.4)">Scroll = Zoom | Drag = Pan<br>Klick = Details</div>
+  <div style="margin-top:10px;border-top:1px solid rgba(0,200,255,0.1);padding-top:10px">
+    <button class="btn-export-all" onclick="exportAll()">📋 ALLE EXPORTIEREN</button>
+    <button class="btn-export-all" style="margin-top:5px;background:rgba(255,107,53,0.08);border-color:rgba(255,107,53,0.3);color:#ff6b35" onclick="exportFiltered()">📋 GEFILTERT EXPORTIEREN</button>
+    <div id="copy-all-feedback"></div>
+  </div>
+</div>
+
+<!-- ADD GPS PANEL -->
+<div id="add-panel">
+  <div id="add-panel-header">
+    <span class="drag-handle" style="flex:1">// GPS KOORDINATE HINZUFÜGEN</span>
+    <span id="add-panel-toggle" onclick="toggleAddPanel()" style="cursor:pointer;padding-left:10px">▲</span>
+  </div>
+  <div id="add-panel-body">
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="switchTab('raw')">RAW STRING</button>
+      <button class="tab-btn" onclick="switchTab('manual')">MANUELL</button>
+    </div>
+
+    <!-- RAW Tab -->
+    <div class="tab-content active" id="tab-raw">
+      <textarea id="gps-raw-input" placeholder="GPS:Name:X:Y:Z:#FFRRGGBB:&#10;GPS:Name:X:Y:Z:#FFRRGGBB:&#10;(Mehrere Zeilen möglich)"></textarea>
+      <button class="btn-add-gps" onclick="addFromRaw()">+ HINZUFÜGEN</button>
+    </div>
+
+    <!-- MANUAL Tab -->
+    <div class="tab-content" id="tab-manual">
+      <div class="gps-input-row">
+        <label>N</label>
+        <input type="text" id="m-name" placeholder="Name des Punktes">
+      </div>
+      <div class="gps-input-row">
+        <label>X</label>
+        <input type="number" id="m-x" placeholder="X Koordinate">
+      </div>
+      <div class="gps-input-row">
+        <label>Y</label>
+        <input type="number" id="m-y" placeholder="Y Koordinate">
+      </div>
+      <div class="gps-input-row">
+        <label>Z</label>
+        <input type="number" id="m-z" placeholder="Z Koordinate">
+      </div>
+      <div style="font-size:0.6rem;color:rgba(168,216,234,0.5);margin-bottom:6px;letter-spacing:1px">TYP:</div>
+      <div class="add-type-row" id="type-chips">
+        <span class="type-chip selected" style="color:#75c9f1;background:rgba(117,201,241,0.1)" data-type="eis" onclick="selectChip(this)">Eis</span>
+        <span class="type-chip" style="color:#f1bf75;background:rgba(241,191,117,0.1)" data-type="metall" onclick="selectChip(this)">Metall</span>
+        <span class="type-chip" style="color:#f1d875;background:rgba(241,216,117,0.1)" data-type="edel" onclick="selectChip(this)">Edelmetall</span>
+        <span class="type-chip" style="color:#f175b4;background:rgba(241,117,180,0.1)" data-type="spezial" onclick="selectChip(this)">Spezial</span>
+        <span class="type-chip" style="color:#7fff7f;background:rgba(127,255,127,0.1)" data-type="station" onclick="selectChip(this)">Station</span>
+      </div>
+      <button class="btn-add-gps" onclick="addManual()">+ HINZUFÜGEN</button>
+    </div>
+
+    <div id="add-feedback"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+//  GITHUB GIST MULTIPLAYER SPEICHER
+// ═══════════════════════════════════════════════════════════════════════════
+const CFG_KEY = 'se_raumkarte_config';
+let gistConfig = { token: '', gistId: '', filename: 'se_gps_data.json' };
+let saveDebounceTimer = null;
+let saveStatus = 'idle';
+let lastEtag = null;
+let autoSyncTimer = null;
+
+// ── Config laden/speichern (bleibt lokal im Browser) ────────────────────────
+function loadConfig() {
+  try {
+    const raw = localStorage.getItem(CFG_KEY);
+    if (raw) gistConfig = { ...gistConfig, ...JSON.parse(raw) };
+  } catch(e) {}
+}
+function saveConfig() {
+  try { localStorage.setItem(CFG_KEY, JSON.stringify(gistConfig)); } catch(e) {}
+}
+function isConfigured() { return !!(gistConfig.token && gistConfig.gistId); }
+
+// ── Save Status UI ───────────────────────────────────────────────────────────
+function setSaveStatus(status, msg) {
+  saveStatus = status;
+  const el = document.getElementById('save-status');
+  if (!el) return;
+  const icons = { idle:'', saving:'⟳ SYNC...', saved:'✓ GESPEICHERT', error:'⚠ FEHLER', syncing:'⟳ LADE...' };
+  const cols  = { idle:'transparent', saving:'rgba(0,200,255,0.5)', saved:'#7fff7f', error:'#ff4444', syncing:'rgba(0,200,255,0.5)' };
+  el.textContent = msg || icons[status];
+  el.style.color = cols[status];
+  if (status === 'saved') setTimeout(() => { el.textContent=''; saveStatus='idle'; }, 3000);
+}
+
+// ── Daten auf Gist speichern ─────────────────────────────────────────────────
+function triggerSave() {
+  clearTimeout(saveDebounceTimer);
+  setSaveStatus('saving');
+  saveDebounceTimer = setTimeout(saveToGist, 800);
+}
+
+async function saveToGist() {
+  if (!isConfigured()) { setSaveStatus('error', '⚠ NICHT KONFIGURIERT'); return; }
+  const payload = {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    savedBy: gistConfig.playerName || 'Spieler',
+    points: points.map(p => ({
+      name: p.name, x: p.x, y: p.y, z: p.z,
+      type: p.type, originalType: p.originalType || null,
+      comment: p.comment || null
+    }))
+  };
+  try {
+    const res = await fetch(`https://api.github.com/gists/${gistConfig.gistId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `token ${gistConfig.token}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/vnd.github.v3+json'
+      },
+      body: JSON.stringify({ files: { [gistConfig.filename]: { content: JSON.stringify(payload, null, 2) } } })
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.message || res.status); }
+    const t = new Date().toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    setSaveStatus('saved', `✓ SYNC (${payload.points.length} Punkte, ${t})`);
+  } catch(e) {
+    setSaveStatus('error', `⚠ ${e.message}`);
+  }
+}
+
+// ── Daten von Gist laden ─────────────────────────────────────────────────────
+async function loadFromGist() {
+  if (!isConfigured()) return null;
+  try {
+    const res = await fetch(`https://api.github.com/gists/${gistConfig.gistId}`, {
+      headers: {
+        'Authorization': `token ${gistConfig.token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const gist = await res.json();
+    const file = gist.files[gistConfig.filename];
+    if (!file) throw new Error(`Datei "${gistConfig.filename}" nicht im Gist gefunden`);
+    const raw = file.content || (await fetch(file.raw_url).then(r=>r.text()));
+    const data = JSON.parse(raw);
+    if (!data.points || data.points.length === 0) return null;
+    return data.points.map(p => ({
+      name: p.name,
+      x: parseFloat(p.x), y: parseFloat(p.y), z: parseFloat(p.z),
+      type: p.type || classifyPointByName(p.name),
+      originalType: p.originalType || undefined,
+      comment: p.comment || undefined
+    }));
+  } catch(e) {
+    console.warn('Gist load error:', e);
+    setSaveStatus('error', `⚠ LADEN FEHLGESCHLAGEN: ${e.message}`);
+    return null;
+  }
+}
+
+// ── Auto-Sync: alle 30s neu laden (andere Spieler sehen Änderungen) ──────────
+function startAutoSync() {
+  stopAutoSync();
+  autoSyncTimer = setInterval(async () => {
+    if (!isConfigured() || saveStatus === 'saving') return;
+    const fresh = await loadFromGist();
+    if (!fresh) return;
+    // Nur neu laden wenn sich was geändert hat
+    if (JSON.stringify(fresh.map(p=>p.name+p.x)) !== JSON.stringify(points.map(p=>p.name+p.x))) {
+      points.length = 0;
+      points.push(...fresh);
+      station = points.find(p => p.type === 'station') || null;
+      draw();
+      if (currentMode === '3d' && is3dInit) rebuild3DPoints();
+      setSaveStatus('saved', '↺ VON MITSPIELER AKTUALISIERT');
+    }
+  }, 30000);
+}
+function stopAutoSync() { if (autoSyncTimer) { clearInterval(autoSyncTimer); autoSyncTimer=null; } }
+
+// ─── FALLBACK: eingebettete Daten ─────────────────────────────────────────────
+const rawGPS = [
+  // Station (Ausgangspunkt)
+  "GPS:RaumStation:429567.36:-12528.23:-11318.64:#FF75F19F",
+
+  // Alle Punkte – bereinigt, dedupliziert (bei gleichen/sehr ähnlichen Koordinaten nur einmal)
+  "GPS:A 0001 Lithium:447401.39:-19627.69:-18966.94:#FF75C9F1",
+  "GPS:A 0002 Eis:439013.13:-18144.7:-26055.86:#FFF1BF75",
+  "GPS:A 0003 Ice3:447717.88:-30803.95:-11920.94:#FF75C9F1",
+  "GPS:A 0004 Gallium:453291.98:-34027.61:-9867.96:#FF75C9F1",
+  "GPS:A 0005 Eis ICE:451042.37:-53083.64:-51580.14:#FF75C9F1",
+  "GPS:A 0006 Lithium Wolfram:455635.68:-58027.71:-55045.25:#FF75C9F1",
+  "GPS:A 0007 Eis ICE:453848.88:-49127.07:-19974.98:#FF75C9F1",
+  "GPS:A 0008 Eis ICE:448751.37:-48957.7:-12843.4:#FF75C9F1",
+  "GPS:A 0009 Galium:453557.73:-33737.27:-9960.44:#FF75C9F1",
+  "GPS:A 0010 Bauxit Eis:465672.74:-40647.66:-28266.63:#FF75C9F1",
+  "GPS:A 0011 Eisen:469612.15:-47392:-34237.35:#FF75C9F1",
+  "GPS:A 0012 Nickel Eis:473973.02:-35620.92:-45426.94:#FF75C9F1",
+  "GPS:A 0013 Magnesium Kobalt:478597.31:-28996.58:-40267.34:#FF75C9F1",
+  "GPS:A 0014 Eis ICE:468191.57:-16808.72:-45588.73:#FF75C9F1",
+  "GPS:A 0015 Tantalum:442705.48:5335.91:-12188.81:#FF75C9F1",
+  "GPS:A 0016 Lithium:447547.32:-19327.63:-18629.72:#FF75C9F1",
+  "GPS:A 0017 ICE1:455340.59:17521.03:-9493.97:#FF75C9F1",
+  "GPS:A 0018 Kupfer Lithium:462303:23963.67:-6323.38:#FF75C9F1",
+  "GPS:A 0019 Eis:472889.16:30357.35:-1061.85:#FF75C9F1",
+  "GPS:A 0020 Kobalt Eis:474111.57:40817.43:-4080.86:#FF75C9F1",
+  "GPS:A 0021 Eisen Galium:487031.62:32658.26:-4515.4:#FF75C9F1",
+  "GPS:A 0022 ICE1 ICE3:493413.99:38564.73:-1318.35:#FF75C9F1",
+  "GPS:A 0023 Eis ICE:504815.55:27004.85:-2219.24:#FF75C9F1",
+  "GPS:A 0024 Kupfer:495534.9:47632.89:10225.5:#FF75C9F1",
+  "GPS:A 0025 Kobalt Eis:483996.97:43662.34:22550.88:#FF75C9F1",
+  "GPS:A 0026 ICE1 ICE3:485451.72:49462.74:33289.88:#FF75C9F1",
+  "GPS:A 0027 Eis:484607.89:29779.03:18615.21:#FF75C9F1",
+  "GPS:A 0028 Kupfer:502560.17:40885.98:24418.71:#FF75C9F1",
+  "GPS:A 0029 ICE3:493630.13:26331.95:44290.77:#FF75C9F1",
+  "GPS:A 0030 Silber Eisen Silizium:498423.23:20767.09:40503.34:#FF75C9F1",
+  "GPS:A 0031 Eis ICE3:498658.37:19178.41:33455.63:#FF75C9F1",
+  "GPS:A 0032 Eis ICE2:507729.33:37581.53:50593.53:#FF75C9F1",
+  "GPS:A 0033 Eis ICE3:518917.69:50094.48:55401.05:#FF75C9F1",
+  "GPS:A 0034 Silizium Kobalt:526907.78:41898.65:60648.33:#FF75C9F1",
+  "GPS:A 0035 Silber Eis:537362.33:41213.63:61781.04:#FF75C9F1",
+  "GPS:A 0036 Quecksilber Silber:517581.44:29935.96:65629.22:#FF75C9F1",
+  "GPS:A 0037 Kupfer Eis:519632.21:34408.01:71886.4:#FF75C9F1",
+  "GPS:A 0039 Eisen:535565.99:31495.71:71978.82:#FF75C9F1",
+  "GPS:A 0040 Eis:542282.5:46421.4:69007.7:#FF75C9F1",
+  "GPS:A 0041 ICE3:542846.86:54184.32:64894.21:#FF75C9F1",
+  "GPS:A 0042 Kupfer:537114.82:43351.95:78273.4:#FF75C9F1",
+  "GPS:A 0043 Galium RockSalt:537730.03:40860.93:92475.34:#FF75C9F1",
+  "GPS:A 0044 Kupfer Eis:555759.55:48670.51:68583.67:#FF75C9F1",
+  "GPS:A 0045 Galium:537121.44:57009.76:51216:#FF75C9F1",
+  "GPS:A 0046 Platin ICE3:543077.35:60179.66:42692.65:#FF75C9F1",
+  "GPS:A 0047 Wolfram Eis:454047.78:-2460.86:-2837.28:#FF75C9F1",
+  "GPS:A 0048 ICE2:470473.34:9913.3:8151.38:#FF75C9F1",
+  "GPS:A 0049 Eis:476111.47:11213.76:12397.89:#FF75C9F1",
+  "GPS:A 0050 Gold Silber:472106.04:15254.99:10762.49:#FF75C9F1",
+  "GPS:A 0051 Eis Kupfer:461118.19:23415.56:2427.03:#FF75C9F1",
+  "GPS:A 0052 Lithium:446224.92:30973.21:12075.8:#FF75C9F1",
+  "GPS:A 0053 Eis:480328.28:12378.36:3792.85:#FF75C9F1",
+  "GPS:A 0054 Platin:478550.33:312.11:16124.41:#FF75C9F1",
+  "GPS:A 0055 Galium ICE3:499571.76:62104.61:17887.93:#FF75C9F1",
+  "GPS:A 0056 Eis:526040.03:43357.24:24135.86:#FF75C9F1",
+  "GPS:A 0057 Kupfer Eis:528570.38:48402.12:15311.69:#FF75C9F1",
+  "GPS:A 0058 Titan ICE3:515165.68:48652:-6042.31:#FF75C9F1",
+  "GPS:A 0059 Kupfer Eis:520792.89:46024.26:-9118.33:#FF75C9F1",
+  "GPS:A 0060 Lithium:504753.54:33645.8:-21061.1:#FF75C9F1",
+  "GPS:A 0061 Kupfer Silber:481545.48:33305.88:-27568.91:#FF75C9F1",
+  "GPS:A 0062 Nickel ICE3:464218.18:33065.18:-35550.17:#FF75C9F1",
+  "GPS:A 0063 Gold Silber:461276.58:25922.15:-29344.47:#FF75C9F1",
+  "GPS:A 0064 Eis ICE2:440076.32:25047.89:-10934.74:#FF75C9F1",
+  "GPS:A 0065 Silber ICE:444734.56:27907.85:-13318.02:#FF75C9F1",
+  "GPS:A 0066 Eisen Eis:440679.18:31226.46:-14153:#FF75C9F1",
+  "GPS:A 0067 Kupfer ICE2:449474.47:27355.62:-16131.83:#FF75C9F1",
+  "GPS:A 0068 Eis:446186.49:45772.64:-19598.96:#FF75C9F1",
+  "GPS:A 0069 Silber Eis:444716.63:41169.76:-2964.77:#FF75C9F1",
+  "GPS:A 0070 Eisen Eis:455846.09:43479.82:-3017.83:#FF75C9F1",
+  // Space- Punkte (ohne Spielernamen)
+  "GPS:Space Copper Silizium:436165.49:40175.98:-19587.34:#FFF17575",
+  "GPS:Space Ice1 Silber:444435.55:27705.22:-13095.59:#FFF17575",
+  "GPS:Space Rein Eis 1:532341.34:66772.92:-27300.71:#FF75C9F1",
+  "GPS:Space Silber:436355.04:-17938.83:-38158.3:#FFF17575",
+  "GPS:Space Silber 2:444201.35:-12402.08:-5752.29:#FFF17575",
+  "GPS:Space Silber Nickel:447365.86:8892.22:-1332.33:#FFF17575",
+  "GPS:A 0014 Sulfur Silizium:486637.51:-46398.01:-2183.52:#FF75C9F1",
+  "GPS:A 0015 Platin Eis:498521.26:-36099.17:-5575.96:#FF75C9F1",
+  "GPS:A 0016 Copper Eis:498318.72:-35815.95:-23406.7:#FF75C9F1",
+  "GPS:A 0017 Bauxit:419836.13:46880.96:-44720.56:#FFF175CB",
+  "GPS:A 0018 Rocksalt:429339.68:42220.99:-32444.61:#FFF1BF75",
+  "GPS:A 0019 Tantalum:441277.6:-15882.72:-20434.07:#FF75C9F1",
+  "GPS:A 0020 Eis:435400.46:-20594.4:-25864.63:#FF75C9F1",
+  "GPS:A 0021 Eis:485485.79:-29205.54:-20760.25:#FF75C9F1",
+  "GPS:A 0022 Ice2:484987.01:-23727.93:-37529.34:#FF75C9F1",
+  "GPS:A 0023 Kobalt Mag:479061.55:-29192.64:-40740.59:#FF75C9F1",
+  "GPS:A 0024 Eis Nickel:476107.37:-34506.48:-45321.36:#FF75C9F1",
+  "GPS:A 0025 Ice2:493798.54:-16829.29:-35406.27:#FF75C9F1",
+  "GPS:A 0026 Ice1 Nickel:497277.35:-12916.7:-37356.48:#FF75C9F1",
+  "GPS:A 0027 Eis Ice:502567.05:-18002.59:-50029.66:#FF75C9F1",
+  "GPS:A 0028 Ice:510277.25:-13713.09:-33393.12:#FF75C9F1",
+  "GPS:A 0029 Platin Eis:511126.96:-9945.64:-20378.1:#FF75C9F1",
+  "GPS:A 0030 Eisen Kobalt:511935.97:-2141.27:-10064.71:#FF75C9F1",
+  "GPS:A 0031 Silber Eis:502923.05:-13654.65:-7326.75:#FF75C9F1",
+  "GPS:A 0032 Eis:504895.72:26479.55:-2561.06:#FF75C9F1",
+  "GPS:A 0033 Lithium:504761.59:32874.98:-20874.1:#FF75C9F1",
+  "GPS:A 0034 Eisen Gallium:486863.64:31971.61:-4339.57:#FF75C9F1",
+  "GPS:A 0035 Eis Kobalt:474550.57:40428.83:-4677.16:#FF75C9F1",
+  "GPS:A 0036 Eisen Eis:455904.14:43628.59:-3215.57:#FF75C9F1",
+  "GPS:A 0037 Eis Silber:444805.18:40835.36:-3262.55:#FF75C9F1",
+  "GPS:A 0038 Tantalum:442421.61:5016.83:-12191.12:#FF75C9F1",
+  "GPS:A 0011 Platin:415243.49:-11629.32:-47915.58:#FFF1BF75",
+  // ── Neue Punkte A 0101–0146 ───────────────────────────────────────────────
+  "GPS:A 0101 Copper 1:495890.58:48060.56:9660.5:#FFF1BF75",
+  "GPS:A 0102 Copper 2:501886.02:39926.96:25283.77:#FFF1BF75",
+  "GPS:A 0103 Copper 3:533308.23:-33485.89:-77498.65:#FFF1BF75",
+  "GPS:A 0104 Copper Eis 1:508955.91:53277.31:-44355.76:#FFF1BF75",
+  "GPS:A 0105 Copper Ice1 2:535968.13:-30752.97:-85231.99:#FFF1BF75",
+  "GPS:A 0106 Copper Ice2 Ice3 Eis:484881.31:29731.15:-45524.54:#FFF1BF75",
+  "GPS:A 0107 Copper Ice3 1:531181.75:-22149.14:-94264.75:#FFF1BF75",
+  "GPS:A 0108 Eis 1:475618.84:11671.78:11971.19:#FF75C9F1",
+  "GPS:A 0109 Eis 2:480328.01:12009.85:3942.82:#FF75C9F1",
+  "GPS:A 0110 Eis 3:418311.42:-48878.11:-5056.62:#FF75C9F1",
+  "GPS:A 0111 Eis 4:483114.95:29757.57:18131.85:#FF75C9F1",
+  "GPS:A 0112 Eis 5:521145.98:-3463.6:-49940.3:#FF75C9F1",
+  "GPS:A 0113 Eis Copper:461082.34:24013.01:1403.13:#FFF1BF75",
+  "GPS:A 0114 Eis Ice 1:502342.45:-18553.02:-50452.37:#FF75C9F1",
+  "GPS:A 0115 Eis Ice 2:412747.26:-37121.33:-20722.15:#FF75C9F1",
+  "GPS:A 0116 Eis Ice 3:473790.38:26801.82:-11867.33:#FF75C9F1",
+  "GPS:A 0117 Eis Kobalt 1:474568:39842.52:-4458.39:#FFF175B4",
+  "GPS:A 0118 Eis Kobalt 2:484076.23:42506.48:22116.39:#FFF175B4",
+  "GPS:A 0119 Gold 1:525562.75:54719.23:-25023.44:#FFF1D875",
+  "GPS:A 0120 Gold Eis 1:533560.03:50280.37:-30376.89:#FFF1D875",
+  "GPS:A 0121 Ice1:455008.32:17421.46:-9413.14:#FF75C9F1",
+  "GPS:A 0122 Ice1 Ice3:485507.93:48812.2:32375.68:#FF75C9F1",
+  "GPS:A 0123 Ice2 1:493973.91:-16028.46:-35008:#FF75C9F1",
+  "GPS:A 0124 Ice2 2:485497.74:-23928.91:-37894.38:#FF75C9F1",
+  "GPS:A 0125 Ice2 3:470579.2:10682.98:8688.13:#FF75C9F1",
+  "GPS:A 0126 Ice2 4:511005.42:-12978.77:-32731.06:#FF75C9F1",
+  "GPS:A 0127 Ice3 1:484589.04:52804.54:-38088.09:#FF75C9F1",
+  "GPS:A 0128 Ice3 Eis 1:520546.05:76407.69:-24853.96:#FF75C9F1",
+  "GPS:A 0129 Kolbalt Eisen 1:513178.31:-2032.98:-10006.17:#FFF1BF75",
+  "GPS:A 0130 Lithium:447547.32:-19327.63:-18629.72:#FFF175B4",
+  "GPS:A 0131 Lithium Cooper:461705.79:23266.05:-6954.19:#FFF175B4",
+  "GPS:A 0132 Magnesium Kobalt 1:478717.01:-28700.42:-40477.74:#FFF175B4",
+  "GPS:A 0133 Nickel Eis 1:475546.86:-34123.37:-44956.05:#FFF175B4",
+  "GPS:A 0134 Nickel Ice1:498424.65:-12657.4:-36840.44:#FFF175B4",
+  "GPS:A 0135 NIX DRIN:457488.14:21310.05:6848.55:#FF888888",
+  "GPS:A 0136 Platin:478669.73:1303.72:15920.95:#FFF1D875",
+  "GPS:A 0137 Rein Eis 1:532341.34:66772.92:-27300.71:#FF75C9F1",
+  "GPS:A 0138 Silber Gold:470832.94:16328.91:10635.63:#FFF1D875",
+  "GPS:A 0139 Silber Eis 1:514309.93:999.89:-46551.24:#FFF1D875",
+  "GPS:A 0140 Silber Eis 2:536690.63:44828.26:-37508.88:#FFF1D875",
+  "GPS:A 0141 Silber Ice1 1:535433.71:-26394.18:-66944.18:#FFF1D875",
+  "GPS:A 0142 Silicium Ice1 1:529917.2:-21824.56:-68174.47:#FFF175B4",
+  "GPS:A 0143 Silicium Ice2 1:503040.9:-13211.51:-6256.74:#FFF175B4",
+  "GPS:A 0144 Platin Ice3:510901.67:-9485.68:-19604.69:#FFF1D875",
+  "GPS:A 0145 Tantalum 1:441587.95:-15945.33:-20925.03:#FFF175B4",
+  "GPS:A 0146 Tantalum 2:442613.97:4852.27:-11882.3:#FFF175B4",
+];
+
+// ─── PARSE ──────────────────────────────────────────────────────────────────
+function parseGPS(lines) {
+  const seen = new Set();
+  return lines.map(line => {
+    const parts = line.replace('GPS:','').split(':');
+    if (parts.length < 4) return null;
+    const name = parts[0].trim();
+    const x = parseFloat(parts[1]);
+    const y = parseFloat(parts[2]);
+    const z = parseFloat(parts[3]);
+    if (isNaN(x)||isNaN(y)||isNaN(z)) return null;
+    // Deduplicate by rounded coords
+    const key = `${Math.round(x/100)},${Math.round(y/100)},${Math.round(z/100)}`;
+    if (seen.has(key)) return null;
+    seen.add(key);
+    return { name, x, y, z, color: parts[4]||'#FF75C9F1' };
+  }).filter(Boolean);
+}
+
+// ─── CLASSIFY ───────────────────────────────────────────────────────────────
+const edelKeywords = ['gold','silber','platin','quecksilber','au','ag','pt'];
+const spezialKeywords = ['titan','wolfram','tantalum','tantal','lithium','sulfur','rocksalt','bauxit','galium','gallium','silizium','kobalt','magnesium','nickel','kobald','mag'];
+const metallKeywords = ['eisen','kupfer','fe','cu','ni','co','nickel'];
+const eisKeywords = ['eis','ice'];
+
+function classifyPoint(p) {
+  if (p.name.toLowerCase().includes('raumstation') || p.name.toLowerCase().includes('station')) return 'station';
+  if (p.name.toLowerCase().includes('base')) return 'station';
+  const n = p.name.toLowerCase();
+  if (edelKeywords.some(k=>n.includes(k))) return 'edel';
+  if (spezialKeywords.some(k=>n.includes(k))) return 'spezial';
+  if (metallKeywords.some(k=>n.includes(k))) return 'metall';
+  if (eisKeywords.some(k=>n.includes(k))) return 'eis';
+  return 'unbekannt';
+}
+
+// alias used by loadFromGist
+function classifyPointByName(name) {
+  return classifyPoint({name});
+}
+
+const typeColors = {
+  station: '#7fff7f',
+  eis: '#75c9f1',
+  metall: '#f1bf75',
+  edel: '#f1d875',
+  spezial: '#f175b4',
+  unbekannt: '#888888',
+  erschoepft: '#ff4444'
+};
+const typeLabels = {
+  station: 'Station',
+  eis: 'Eis / Ice',
+  metall: 'Metall',
+  edel: 'Edelmetall',
+  spezial: 'Spezial',
+  unbekannt: 'Unbekannt',
+  erschoepft: '⊘ Erschöpft'
+};
+
+// Points array – filled async on init
+let points = [];
+let station = null;
+
+// ─── CANVAS MAP ─────────────────────────────────────────────────────────────
+const canvas = document.getElementById('mapCanvas');
+const ctx = canvas.getContext('2d');
+
+let viewMode = 'xy';
+let transform = { x: 0, y: 0, scale: 1 };
+let dragging = false, lastMouse = null;
+let hoveredPoint = null;
+let filters = { eis:true, metall:true, edel:true, spezial:true, station:true, unbekannt:true, erschoepft:true };
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  if (station) resetView();
+  else draw();
+}
+
+function getCoords(p) {
+  if (viewMode === 'xy') return { a: p.x, b: p.y };
+  if (viewMode === 'xz') return { a: p.x, b: p.z };
+  return { a: p.y, b: p.z };
+}
+
+function resetView() {
+  if (!station) return;
+  const sc = station ? getCoords(station) : { a:0, b:0 };
+  transform.scale = 0.0035;
+  transform.x = canvas.width/2 - sc.a * transform.scale;
+  transform.y = canvas.height/2 - sc.b * transform.scale;
+  draw();
+}
+
+function worldToScreen(wx, wy) {
+  return {
+    sx: wx * transform.scale + transform.x,
+    sy: wy * transform.scale + transform.y
+  };
+}
+function screenToWorld(sx, sy) {
+  return {
+    wx: (sx - transform.x) / transform.scale,
+    wy: (sy - transform.y) / transform.scale
+  };
+}
+
+function zoom(factor) {
+  const cx = canvas.width/2, cy = canvas.height/2;
+  transform.x = cx + (transform.x - cx) * factor;
+  transform.y = cy + (transform.y - cy) * factor;
+  transform.scale *= factor;
+  draw();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(0,200,255,0.05)';
+  ctx.lineWidth = 1;
+  const gridSpacing = 10000;
+  const step = gridSpacing * transform.scale;
+  if (step > 5) {
+    const { wx: x0 } = screenToWorld(0, 0);
+    const { wx: x1 } = screenToWorld(canvas.width, 0);
+    const { wy: y0 } = screenToWorld(0, 0);
+    const { wy: y1 } = screenToWorld(0, canvas.height);
+    const gx0 = Math.floor(x0/gridSpacing)*gridSpacing;
+    const gy0 = Math.floor(y0/gridSpacing)*gridSpacing;
+    for (let gx=gx0; gx<=x1; gx+=gridSpacing) {
+      const { sx } = worldToScreen(gx, 0);
+      ctx.beginPath(); ctx.moveTo(sx,0); ctx.lineTo(sx,canvas.height); ctx.stroke();
+    }
+    for (let gy=gy0; gy<=y1; gy+=gridSpacing) {
+      const { sy } = worldToScreen(0, gy);
+      ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(canvas.width,sy); ctx.stroke();
+    }
+  }
+
+  // Lines from station
+  if (station && filters.station) {
+    const sc = getCoords(station);
+    const { sx: ox, sy: oy } = worldToScreen(sc.a, sc.b);
+    points.forEach(p => {
+      if (p === station) return;
+      if (!filters[p.type]) return;
+      const pc = getCoords(p);
+      const { sx, sy } = worldToScreen(pc.a, pc.b);
+      ctx.beginPath();
+      ctx.moveTo(ox, oy);
+      ctx.lineTo(sx, sy);
+      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    });
+  }
+
+  // Points
+  points.forEach(p => {
+    if (!filters[p.type]) return;
+    const pc = getCoords(p);
+    const { sx, sy } = worldToScreen(pc.a, pc.b);
+    if (sx < -20 || sx > canvas.width+20 || sy < -20 || sy > canvas.height+20) return;
+
+    const col = typeColors[p.type];
+    const isStation = p.type === 'station';
+    const isErschoepft = p.type === 'erschoepft';
+    const isHovered = p === hoveredPoint;
+    const r = isStation ? 8 : (isHovered ? 6 : 4);
+
+    // Glow
+    if (isStation || isHovered) {
+      const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, r*4);
+      g.addColorStop(0, col+'80');
+      g.addColorStop(1, 'transparent');
+      ctx.beginPath();
+      ctx.arc(sx, sy, r*4, 0, Math.PI*2);
+      ctx.fillStyle = g;
+      ctx.fill();
+    }
+
+    // Dot
+    ctx.globalAlpha = isErschoepft ? 0.45 : 1.0;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI*2);
+    ctx.fillStyle = col;
+    ctx.fill();
+
+    // Erschöpft: draw X cross over the dot
+    if (isErschoepft) {
+      const xr = r + 3;
+      ctx.strokeStyle = '#ff4444';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(sx-xr, sy-xr); ctx.lineTo(sx+xr, sy+xr); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx+xr, sy-xr); ctx.lineTo(sx-xr, sy+xr); ctx.stroke();
+      // Dashed circle
+      ctx.setLineDash([3,3]);
+      ctx.beginPath(); ctx.arc(sx, sy, xr+3, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(255,68,68,0.5)'; ctx.lineWidth = 1;
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    ctx.globalAlpha = 1.0;
+
+    if (isStation) {
+      // Cross
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(sx-14,sy); ctx.lineTo(sx+14,sy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx,sy-14); ctx.lineTo(sx,sy+14); ctx.stroke();
+    }
+
+    // Search highlight pulse ring
+    if (p === searchHighlight) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, r + 10 + Math.sin(Date.now()/120)*5, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(sx, sy, r + 18 + Math.sin(Date.now()/120)*5, 0, Math.PI*2);
+      ctx.strokeStyle = 'rgba(0,200,255,0.4)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    // Label
+    if (isHovered || (transform.scale > 0.006 && !isStation) || isStation) {
+      ctx.font = isStation ? 'bold 11px Orbitron, monospace' : '9px Share Tech Mono, monospace';
+      ctx.fillStyle = isStation ? col : (isHovered ? '#fff' : col+'cc');
+      const label = p.name + (p.comment ? ' 💬' : '');
+      ctx.fillText(label, sx+r+3, sy+3);
+    }
+  });
+}
+
+// ─── INTERACTION ────────────────────────────────────────────────────────────
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const f = e.deltaY < 0 ? 1.12 : 0.89;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  transform.x = mx + (transform.x - mx) * f;
+  transform.y = my + (transform.y - my) * f;
+  transform.scale *= f;
+  draw();
+}, { passive: false });
+
+canvas.addEventListener('mousedown', e => {
+  dragging = true;
+  lastMouse = { x: e.clientX, y: e.clientY };
+  document.getElementById('map-container').classList.add('grabbing');
+});
+window.addEventListener('mouseup', () => {
+  dragging = false;
+  document.getElementById('map-container').classList.remove('grabbing');
+});
+window.addEventListener('mousemove', e => {
+  if (dragging && lastMouse) {
+    transform.x += e.clientX - lastMouse.x;
+    transform.y += e.clientY - lastMouse.y;
+    lastMouse = { x: e.clientX, y: e.clientY };
+    draw();
+  }
+  // Hover
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const prev = hoveredPoint;
+  hoveredPoint = null;
+  for (const p of points) {
+    if (!filters[p.type]) continue;
+    const pc = getCoords(p);
+    const { sx, sy } = worldToScreen(pc.a, pc.b);
+    const dx = mx-sx, dy = my-sy;
+    if (dx*dx+dy*dy < 64) { hoveredPoint = p; break; }
+  }
+  if (hoveredPoint !== prev) draw();
+
+  // Cursor coords
+  const w = screenToWorld(mx, my);
+  const axisA = viewMode==='yz' ? 'Y' : 'X';
+  const axisB = viewMode==='xy' ? 'Y' : 'Z';
+  document.getElementById('coords-display').textContent =
+    `CURSOR: ${axisA} ${Math.round(w.wx).toLocaleString()}  ${axisB} ${Math.round(w.wy).toLocaleString()}`;
+});
+
+canvas.addEventListener('click', e => {
+  if (hoveredPoint) {
+    showInfo(hoveredPoint);
+  }
+});
+
+function showInfo(p) {
+  currentInfoPoint = p;
+  // Reset delete confirm
+  document.getElementById('delete-confirm').style.display = 'none';
+  document.getElementById('btn-delete').style.display = p.type === 'station' ? 'none' : 'block';
+  const panel = document.getElementById('info-panel');
+  document.getElementById('info-name').textContent = p.name;
+  document.getElementById('ix').textContent = p.x.toLocaleString('de-DE', {maximumFractionDigits:0});
+  document.getElementById('iy').textContent = p.y.toLocaleString('de-DE', {maximumFractionDigits:0});
+  document.getElementById('iz').textContent = p.z.toLocaleString('de-DE', {maximumFractionDigits:0});
+  document.getElementById('itype').textContent = typeLabels[p.originalType || p.type];
+
+  // Kommentar
+  document.getElementById('info-comment').value = p.comment || '';
+  document.getElementById('comment-status').textContent = '';
+
+  // Status + button
+  const isEx = p.type === 'erschoepft';
+  document.getElementById('istatus').textContent = isEx ? '⊘ Erschöpft' : '✓ Aktiv';
+  document.getElementById('istatus').style.color = isEx ? '#ff4444' : '#7fff7f';
+  const btn = document.getElementById('btn-erschoepft');
+  btn.textContent = isEx ? '✓ REAKTIVIEREN' : '⊘ ERSCHÖPFT';
+  btn.classList.toggle('active', isEx);
+  // Hide button for station
+  btn.style.display = p.type === 'station' ? 'none' : 'block';
+
+  if (station) {
+    const dist = Math.sqrt((p.x-station.x)**2+(p.y-station.y)**2+(p.z-station.z)**2)/1000;
+    document.getElementById('idist').textContent = dist.toLocaleString('de-DE',{maximumFractionDigits:1});
+  }
+  panel.classList.remove('hidden');
+}
+
+let commentDirty = false;
+function markCommentDirty() {
+  commentDirty = true;
+  const btn = document.getElementById('btn-save-comment');
+  if (btn) { btn.style.opacity = '1'; btn.style.borderColor = 'rgba(0,200,255,0.6)'; }
+  document.getElementById('comment-status').textContent = '';
+}
+function saveComment() {
+  if (!currentInfoPoint) return;
+  const txt = document.getElementById('info-comment').value.trim();
+  currentInfoPoint.comment = txt || undefined;
+  commentDirty = false;
+  const btn = document.getElementById('btn-save-comment');
+  if (btn) { btn.style.opacity = '0.4'; btn.style.borderColor = 'rgba(0,200,255,0.3)'; }
+  document.getElementById('comment-status').textContent = '✓ GESPEICHERT';
+  setTimeout(() => { document.getElementById('comment-status').textContent = ''; }, 2500);
+  triggerSave();
+  draw();
+}
+
+function askDelete() {
+  const p = currentInfoPoint;
+  if (!p) return;
+  if (p.type === 'station') {
+    showToast('⚠ Station kann nicht gelöscht werden');
+    return;
+  }
+  document.getElementById('delete-confirm').style.display = 'block';
+  document.getElementById('btn-delete').style.display = 'none';
+}
+
+function cancelDelete() {
+  document.getElementById('delete-confirm').style.display = 'none';
+  document.getElementById('btn-delete').style.display = 'block';
+}
+
+function confirmDelete() {
+  const p = currentInfoPoint;
+  if (!p) return;
+  const name = p.name;
+  const idx = points.indexOf(p);
+  if (idx > -1) points.splice(idx, 1);
+  currentInfoPoint = null;
+  document.getElementById('info-panel').classList.add('hidden');
+  if (p === searchHighlight) { searchHighlight = null; }
+  draw();
+  triggerSave();
+  showToast(`🗑 "${name}" gelöscht`);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('delete-toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function toggleErschoepft() {
+  const p = currentInfoPoint;
+  if (!p || p.type === 'station') return;
+  if (p.type === 'erschoepft') {
+    // Reaktivieren — zurück zum original Typ
+    p.type = p.originalType || 'unbekannt';
+    delete p.originalType;
+  } else {
+    // Als erschöpft markieren — original Typ merken
+    p.originalType = p.type;
+    p.type = 'erschoepft';
+  }
+  showInfo(p);
+  draw();
+  triggerSave();
+}
+
+function setView(mode) {
+  viewMode = mode;
+  ['xy','xz','yz'].forEach(m => {
+    document.getElementById('btn-'+m).classList.toggle('active', m===mode);
+  });
+  resetView();
+}
+
+function toggleFilter(type) {
+  filters[type] = !filters[type];
+  draw();
+}
+
+// ─── EXPORT ──────────────────────────────────────────────────────────────────
+let currentInfoPoint = null;
+
+function toGpsString(p) {
+  return `GPS:${p.name}:${p.x}:${p.y}:${p.z}:#FF75C9F1:`;
+}
+
+function copyToClipboard(text, feedbackId, msg) {
+  navigator.clipboard.writeText(text).then(() => {
+    const el = document.getElementById(feedbackId);
+    el.textContent = msg;
+    setTimeout(() => el.textContent = '', 2500);
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const el = document.getElementById(feedbackId);
+    el.textContent = msg;
+    setTimeout(() => el.textContent = '', 2500);
+  });
+}
+
+function exportSingle() {
+  if (!currentInfoPoint) return;
+  copyToClipboard(toGpsString(currentInfoPoint), 'copy-single-feedback', '✓ Kopiert!');
+}
+
+function exportAll() {
+  const text = points.map(toGpsString).join('\n');
+  copyToClipboard(text, 'copy-all-feedback', `✓ ${points.length} Punkte kopiert!`);
+}
+
+function exportFiltered() {
+  const visible = points.filter(p => filters[p.type]);
+  const text = visible.map(toGpsString).join('\n');
+  copyToClipboard(text, 'copy-all-feedback', `✓ ${visible.length} Punkte kopiert!`);
+}
+
+// ─── SEARCH ──────────────────────────────────────────────────────────────────
+let searchHighlight = null;
+
+function onSearch() {
+  const q = document.getElementById('search-input').value.trim().toLowerCase();
+  const clearBtn = document.getElementById('search-clear');
+  const resultsEl = document.getElementById('search-results');
+
+  clearBtn.style.display = q ? 'block' : 'none';
+
+  if (!q) { resultsEl.style.display = 'none'; searchHighlight = null; draw(); return; }
+
+  const matches = points.filter(p =>
+    p.name.toLowerCase().includes(q)
+  );
+
+  if (!matches.length) {
+    resultsEl.innerHTML = '<div style="padding:10px 14px;font-size:0.68rem;color:rgba(168,216,234,0.4)">Keine Treffer gefunden</div>';
+    resultsEl.style.display = 'block';
+    return;
+  }
+
+  // Sort: station first, then by name
+  matches.sort((a,b) => {
+    if (a.type==='station') return -1;
+    if (b.type==='station') return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  let html = `<div id="search-count">${matches.length} TREFFER</div>`;
+  matches.forEach((p, i) => {
+    const col = typeColors[p.type];
+    const dist = station ? (Math.sqrt((p.x-station.x)**2+(p.y-station.y)**2+(p.z-station.z)**2)/1000).toLocaleString('de-DE',{maximumFractionDigits:0}) : '—';
+    html += `<div class="search-result-item" onclick="jumpTo(${points.indexOf(p)})">
+      <div class="sr-dot" style="background:${col};box-shadow:0 0 4px ${col}"></div>
+      <div class="sr-name">${highlightMatch(p.name, q)}</div>
+      <div class="sr-dist">${dist} km</div>
+    </div>`;
+  });
+
+  resultsEl.innerHTML = html;
+  resultsEl.style.display = 'block';
+}
+
+function highlightMatch(name, q) {
+  const idx = name.toLowerCase().indexOf(q);
+  if (idx === -1) return name;
+  return name.slice(0,idx) +
+    `<span style="color:#fff;background:rgba(0,200,255,0.25);border-radius:2px;padding:0 2px">${name.slice(idx, idx+q.length)}</span>` +
+    name.slice(idx+q.length);
+}
+
+function jumpTo(idx) {
+  const p = points[idx];
+  if (!p) return;
+  searchHighlight = p;
+
+  document.getElementById('search-results').style.display = 'none';
+  document.getElementById('search-input').value = p.name;
+  showInfo(p);
+
+  if (currentMode === '3d') {
+    jumpTo3D(p);
+  } else {
+    jumpTo2D(p);
+  }
+}
+
+function jumpTo2D(p) {
+  const pc = getCoords(p);
+  if (transform.scale < 0.007) {
+    transform.scale = 0.009;
+  }
+  transform.x = canvas.width/2 - pc.a * transform.scale;
+  transform.y = canvas.height/2 - pc.b * transform.scale;
+  draw();
+
+  // Pulse animation
+  let pulseCount = 0;
+  const pulse = setInterval(() => {
+    pulseCount++;
+    draw();
+    if (pulseCount > 12) { clearInterval(pulse); searchHighlight = null; draw(); }
+  }, 150);
+}
+
+function jumpTo3D(p) {
+  if (!is3dInit || !camera3d) return;
+  const targetPos = w3(p);
+
+  // Smoothly fly camera orbit target to this point
+  const startTarget = orb.target.clone();
+  const startRadius = orb.radius;
+  const endRadius = Math.max(12000, Math.min(60000, startRadius * 0.4));
+  const steps = 40;
+  let step = 0;
+
+  // Add pulsing highlight ring to the 3D point
+  add3DHighlight(p);
+
+  const fly = setInterval(() => {
+    step++;
+    const t = step / steps;
+    const ease = t < 0.5 ? 2*t*t : -1+(4-2*t)*t; // ease in-out
+
+    orb.target.lerpVectors(startTarget, targetPos, ease);
+    orb.radius = startRadius + (endRadius - startRadius) * ease;
+
+    if (step >= steps) {
+      clearInterval(fly);
+      orb.target.copy(targetPos);
+      orb.radius = endRadius;
+
+      // Remove highlight after 3 seconds
+      setTimeout(() => remove3DHighlight(), 3000);
+    }
+  }, 16);
+}
+
+// 3D pulsing highlight ring
+let highlightRing3d = null;
+let highlightPulseAnim = null;
+
+function add3DHighlight(p) {
+  remove3DHighlight();
+  if (!scene) return;
+  const pos = w3(p);
+
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xffffff, transparent: true, opacity: 0.8,
+    side: THREE.DoubleSide, depthWrite: false
+  });
+  highlightRing3d = new THREE.Mesh(new THREE.TorusGeometry(3500, 200, 8, 48), mat);
+  highlightRing3d.position.copy(pos);
+  highlightRing3d.rotation.x = Math.PI / 2;
+  highlightRing3d.userData.isHighlight = true;
+  scene.add(highlightRing3d);
+
+  // Outer ring
+  const mat2 = new THREE.MeshBasicMaterial({
+    color: 0x00c8ff, transparent: true, opacity: 0.4,
+    side: THREE.DoubleSide, depthWrite: false
+  });
+  const ring2 = new THREE.Mesh(new THREE.TorusGeometry(5500, 120, 8, 48), mat2);
+  ring2.position.copy(pos);
+  ring2.rotation.x = Math.PI / 2;
+  ring2.userData.isHighlight = true;
+  scene.add(ring2);
+
+  // Pulse scale animation
+  let tick = 0;
+  highlightPulseAnim = setInterval(() => {
+    tick++;
+    const s = 1 + Math.sin(tick * 0.15) * 0.18;
+    if (highlightRing3d) highlightRing3d.scale.setScalar(s);
+    ring2.scale.setScalar(1 + Math.sin(tick * 0.15 + 0.5) * 0.12);
+    // Fade opacity
+    if (highlightRing3d) highlightRing3d.material.opacity = 0.5 + Math.sin(tick * 0.15) * 0.3;
+    ring2.material.opacity = 0.2 + Math.sin(tick * 0.15 + 0.5) * 0.2;
+  }, 16);
+}
+
+function remove3DHighlight() {
+  if (highlightPulseAnim) { clearInterval(highlightPulseAnim); highlightPulseAnim = null; }
+  if (!scene) return;
+  const toRemove = scene.children.filter(c => c.userData && c.userData.isHighlight);
+  toRemove.forEach(c => scene.remove(c));
+  highlightRing3d = null;
+  searchHighlight = null;
+}
+
+function clearSearch() {
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-clear').style.display = 'none';
+  document.getElementById('search-results').style.display = 'none';
+  searchHighlight = null;
+  draw();
+}
+
+function onSearchKey(e) {
+  if (e.key === 'Escape') clearSearch();
+  if (e.key === 'Enter') {
+    const first = document.querySelector('.search-result-item');
+    if (first) first.click();
+  }
+}
+
+// Close results when clicking map
+document.getElementById('map-container').addEventListener('mousedown', () => {
+  document.getElementById('search-results').style.display = 'none';
+});
+
+window.addEventListener('resize', resize);
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+(async function initApp() {
+  loadConfig();
+  setSaveStatus('syncing', '⟳ LADE DATEN...');
+
+  if (isConfigured()) {
+    const gistPoints = await loadFromGist();
+    if (gistPoints && gistPoints.length > 0) {
+      points.push(...gistPoints);
+      setSaveStatus('saved', `✓ ${points.length} PUNKTE GELADEN`);
+      startAutoSync();
+    } else {
+      const fallback = parseGPS(rawGPS);
+      fallback.forEach(p => p.type = classifyPoint(p));
+      points.push(...fallback);
+      setSaveStatus('idle');
+    }
+  } else {
+    // Nicht konfiguriert → eingebettete Daten + Setup-Wizard zeigen
+    const fallback = parseGPS(rawGPS);
+    fallback.forEach(p => p.type = classifyPoint(p));
+    points.push(...fallback);
+    setSaveStatus('error', '⚠ NICHT KONFIGURIERT – KLICK ⚙');
+    setTimeout(() => openSetupWizard(), 800);
+  }
+
+  station = points.find(p => p.type === 'station') || null;
+  resize();
+  setTimeout(resetView, 100);
+})();
+
+// ─── ADD GPS PANEL ───────────────────────────────────────────────────────────
+let addPanelOpen = false;
+function toggleAddPanel() {
+  addPanelOpen = !addPanelOpen;
+  document.getElementById('add-panel-body').classList.toggle('open', addPanelOpen);
+  document.getElementById('add-panel-toggle').textContent = addPanelOpen ? '▼' : '▲';
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='raw')||(i===1&&tab==='manual')));
+  document.getElementById('tab-raw').classList.toggle('active', tab==='raw');
+  document.getElementById('tab-manual').classList.toggle('active', tab==='manual');
+}
+
+function selectChip(el) {
+  document.querySelectorAll('.type-chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function feedback(msg, ok=true) {
+  const el = document.getElementById('add-feedback');
+  el.style.color = ok ? '#7fff7f' : '#ff6b35';
+  el.textContent = msg;
+  setTimeout(() => el.textContent = '', 3000);
+}
+
+function addPoint(p) {
+  // Check duplicate
+  const dup = points.find(e =>
+    Math.abs(e.x-p.x)<100 && Math.abs(e.y-p.y)<100 && Math.abs(e.z-p.z)<100
+  );
+  if (dup) { feedback(`⚠ Duplikat: ${dup.name}`, false); return false; }
+  if (!p.type) p.type = classifyPoint(p);
+  points.push(p);
+  draw();
+  triggerSave();
+  return true;
+}
+
+function addFromRaw() {
+  const raw = document.getElementById('gps-raw-input').value.trim();
+  if (!raw) { feedback('⚠ Kein Input', false); return; }
+  const lines = raw.split('\n').map(l=>l.trim()).filter(l=>l.startsWith('GPS:'));
+  if (!lines.length) { feedback('⚠ Kein gültiger GPS-String', false); return; }
+  let added = 0, skipped = 0;
+  lines.forEach(line => {
+    const parts = line.replace('GPS:','').split(':');
+    if (parts.length < 4) { skipped++; return; }
+    const name = parts[0].trim();
+    const x = parseFloat(parts[1]), y = parseFloat(parts[2]), z = parseFloat(parts[3]);
+    if (isNaN(x)||isNaN(y)||isNaN(z)) { skipped++; return; }
+    const p = { name, x, y, z, color: parts[4]||'#FF75C9F1' };
+    p.type = classifyPoint(p);
+    if (addPoint(p)) added++; else skipped++;
+  });
+  document.getElementById('gps-raw-input').value = '';
+  if (added > 0) feedback(`✓ ${added} Punkt${added>1?'e':''} hinzugefügt${skipped?' ('+skipped+' übersprungen)':''}`, true);
+  else feedback(`⚠ Alle übersprungen (Duplikate oder ungültig)`, false);
+}
+
+function addManual() {
+  const name = document.getElementById('m-name').value.trim();
+  const x = parseFloat(document.getElementById('m-x').value);
+  const y = parseFloat(document.getElementById('m-y').value);
+  const z = parseFloat(document.getElementById('m-z').value);
+  if (!name) { feedback('⚠ Name fehlt', false); return; }
+  if (isNaN(x)||isNaN(y)||isNaN(z)) { feedback('⚠ Koordinaten ungültig', false); return; }
+  const selectedChip = document.querySelector('.type-chip.selected');
+  const type = selectedChip ? selectedChip.dataset.type : null;
+  const p = { name, x, y, z, type };
+  if (!p.type) p.type = classifyPoint(p);
+  if (addPoint(p)) {
+    feedback(`✓ "${name}" hinzugefügt`, true);
+    document.getElementById('m-name').value='';
+    document.getElementById('m-x').value='';
+    document.getElementById('m-y').value='';
+    document.getElementById('m-z').value='';
+  }
+}
+
+// ─── DRAGGABLE PANELS ────────────────────────────────────────────────────────
+(function() {
+  // panels: { el, handle }
+  const panelConfigs = [
+    { panelId: 'info-panel',   handleSel: '#info-panel-header' },
+    { panelId: 'legend',       handleSel: '#legend h3' },
+    { panelId: 'filter-panel', handleSel: '#filter-panel h4' },
+    { panelId: 'add-panel',    handleSel: '#add-panel-header .drag-handle' },
+  ];
+
+  panelConfigs.forEach(({ panelId, handleSel }) => {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+
+    // Wait for DOM ready (handle may not exist yet for some)
+    function initDrag() {
+      const handle = panel.querySelector(handleSel.replace('#'+panelId+' ','').replace('#'+panelId,'')) ||
+                     document.querySelector(handleSel);
+      if (!handle) return;
+
+      let dragging = false, ox = 0, oy = 0, startX = 0, startY = 0;
+
+      handle.addEventListener('mousedown', e => {
+        // Don't start drag on buttons/inputs
+        if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.id === 'add-panel-toggle') return;
+        e.preventDefault();
+
+        // Switch from fixed CSS position to absolute with explicit px values
+        if (panel.style.left === '') {
+          const rect = panel.getBoundingClientRect();
+          panel.style.left = rect.left + 'px';
+          panel.style.top  = rect.top  + 'px';
+          panel.style.right  = 'auto';
+          panel.style.bottom = 'auto';
+        }
+
+        dragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        ox = parseInt(panel.style.left) || 0;
+        oy = parseInt(panel.style.top)  || 0;
+        panel.classList.add('panel-dragging');
+        panel.style.zIndex = 999;
+      });
+
+      window.addEventListener('mousemove', e => {
+        if (!dragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        let nx = ox + dx;
+        let ny = oy + dy;
+        // Clamp to viewport
+        nx = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  nx));
+        ny = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, ny));
+        panel.style.left = nx + 'px';
+        panel.style.top  = ny + 'px';
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (!dragging) return;
+        dragging = false;
+        panel.classList.remove('panel-dragging');
+      });
+    }
+
+    // Init after short delay to ensure DOM is ready
+    setTimeout(initDrag, 50);
+  });
+})();
+
+// ─── MODE SWITCHING ──────────────────────────────────────────────────────────
+let currentMode = '2d';
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('tab-2d').classList.toggle('active', mode==='2d');
+  document.getElementById('tab-3d').classList.toggle('active', mode==='3d');
+  document.getElementById('map-container').style.display       = mode==='2d' ? '' : 'none';
+  document.getElementById('map3d-container').style.display     = mode==='3d' ? '' : 'none';
+  ['controls','view-toggle'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = mode==='2d' ? '' : 'none';
+  });
+  if (mode === '3d') { init3D(); animate3D(); }
+  else { stop3D(); draw(); }
+}
+
+// ─── 3D ENGINE ───────────────────────────────────────────────────────────────
+let scene, camera3d, renderer3d, animFrameId3d;
+let spheres3d = [];
+let is3dInit = false;
+let orb = { theta:0.5, phi:1.1, radius:160000, target:null, dragging:false, rightDrag:false, lastX:0, lastY:0 };
+
+function w3(p) {
+  const ox = station ? station.x : 470000;
+  const oy = station ? station.y : 0;
+  const oz = station ? station.z : 0;
+  const s = 0.45;
+  return new THREE.Vector3((p.x-ox)*s, (p.y-oy)*s, (p.z-oz)*s);
+}
+
+function tcol(type) { return new THREE.Color(typeColors[type]||'#888888'); }
+
+function init3D() {
+  const canvas = document.getElementById('map3dCanvas');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  if (!is3dInit) {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x050a12);
+    scene.fog = new THREE.FogExp2(0x050a12, 0.0000012);
+
+    camera3d = new THREE.PerspectiveCamera(55, canvas.width/canvas.height, 100, 3000000);
+    renderer3d = new THREE.WebGLRenderer({ canvas, antialias:true });
+    renderer3d.setSize(canvas.width, canvas.height);
+    renderer3d.setPixelRatio(Math.min(window.devicePixelRatio,2));
+
+    // Stars
+    const sv = [];
+    for (let i=0;i<10000;i++) sv.push((Math.random()-.5)*3e6,(Math.random()-.5)*3e6,(Math.random()-.5)*3e6);
+    const sg = new THREE.BufferGeometry();
+    sg.setAttribute('position', new THREE.Float32BufferAttribute(sv,3));
+    scene.add(new THREE.Points(sg, new THREE.PointsMaterial({color:0xffffff,size:150,sizeAttenuation:true,transparent:true,opacity:0.55})));
+
+    // Grid
+    scene.add(new THREE.GridHelper(400000,24,0x003344,0x001520));
+
+    // Lights
+    scene.add(new THREE.AmbientLight(0x223344,2));
+    const dl = new THREE.DirectionalLight(0x00c8ff,1.5);
+    dl.position.set(1,2,1);
+    scene.add(dl);
+
+    orb.target = station ? w3(station) : new THREE.Vector3();
+
+    build3DPoints();
+
+    // Mouse events
+    canvas.addEventListener('mousedown', e => {
+      e.preventDefault();
+      orb.dragging=true; orb.rightDrag=e.button===2;
+      orb.lastX=e.clientX; orb.lastY=e.clientY;
+      clickMoved3d=false;
+    });
+    canvas.addEventListener('mousemove', () => clickMoved3d=true);
+    window.addEventListener('mousemove', e => {
+      if (!orb.dragging||currentMode!=='3d') return;
+      const dx=e.clientX-orb.lastX, dy=e.clientY-orb.lastY;
+      orb.lastX=e.clientX; orb.lastY=e.clientY;
+      if (orb.rightDrag) {
+        const right=new THREE.Vector3(), fwd=new THREE.Vector3();
+        camera3d.getWorldDirection(fwd);
+        right.crossVectors(fwd,camera3d.up).normalize();
+        const ps=orb.radius*0.0008;
+        orb.target.addScaledVector(right,-dx*ps);
+        orb.target.addScaledVector(camera3d.up,dy*ps);
+      } else {
+        orb.theta-=dx*0.006;
+        orb.phi=Math.max(0.05,Math.min(Math.PI-0.05,orb.phi-dy*0.006));
+      }
+    });
+    window.addEventListener('mouseup',()=>{ orb.dragging=false; });
+    canvas.addEventListener('wheel',e=>{ e.preventDefault(); orb.radius*=e.deltaY>0?1.1:0.91; orb.radius=Math.max(4000,Math.min(900000,orb.radius)); },{passive:false});
+    canvas.addEventListener('click', e => {
+      if (clickMoved3d) return;
+      const rect=canvas.getBoundingClientRect();
+      const m=new THREE.Vector2(((e.clientX-rect.left)/rect.width)*2-1,-((e.clientY-rect.top)/rect.height)*2+1);
+      const rc=new THREE.Raycaster();
+      rc.setFromCamera(m,camera3d);
+      const hits=rc.intersectObjects(spheres3d);
+      if (hits.length) showInfo(hits[0].object.userData.point);
+    });
+    canvas.addEventListener('contextmenu',e=>e.preventDefault());
+    window.addEventListener('resize',()=>{
+      if(currentMode!=='3d') return;
+      camera3d.aspect=window.innerWidth/window.innerHeight;
+      camera3d.updateProjectionMatrix();
+      renderer3d.setSize(window.innerWidth,window.innerHeight);
+    });
+
+    is3dInit = true;
+  } else {
+    rebuild3DPoints();
+  }
+  updateOrbit();
+}
+
+let clickMoved3d = false;
+
+function build3DPoints() {
+  spheres3d = [];
+  points.forEach(p => {
+    if (!filters[p.type]) return;
+    const pos = w3(p);
+    const isSt = p.type==='station';
+    const isEx = p.type==='erschoepft';
+    const r = isSt ? 2200 : 1000;
+    const col = tcol(p.type);
+
+    const mat = new THREE.MeshStandardMaterial({
+      color:col, emissive:col, emissiveIntensity: isEx?0.05:0.35,
+      roughness:0.5, metalness:0.3,
+      transparent: isEx, opacity: isEx?0.38:1.0
+    });
+    const mesh = new THREE.Mesh(new THREE.SphereGeometry(r,isSt?18:10,isSt?18:10), mat);
+    mesh.position.copy(pos);
+    mesh.userData.point = p;
+    scene.add(mesh);
+    spheres3d.push(mesh);
+
+    // Glow
+    const gm = new THREE.SpriteMaterial({color:col,transparent:true,opacity:isSt?0.3:0.18,depthWrite:false});
+    const gs = new THREE.Sprite(gm);
+    gs.scale.setScalar(isSt?18000:8000);
+    gs.position.copy(pos);
+    scene.add(gs);
+
+    // Station ring
+    if (isSt) {
+      const rm = new THREE.MeshBasicMaterial({color:0x7fff7f,transparent:true,opacity:0.45,side:THREE.DoubleSide});
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(5000,150,8,48), rm);
+      ring.position.copy(pos); ring.rotation.x=Math.PI/2;
+      ring.userData.isRing=true;
+      scene.add(ring);
+    }
+
+    // Erschöpft X
+    if (isEx) {
+      const xm = new THREE.LineBasicMaterial({color:0xff4444,transparent:true,opacity:0.7});
+      const d=2500;
+      [[-1,-1],[1,-1]].forEach(([sx,sy])=>{
+        const g=new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(pos.x-d*sx,pos.y-d*sy,pos.z),
+          new THREE.Vector3(pos.x+d*sx,pos.y+d*sy,pos.z)
+        ]);
+        scene.add(new THREE.Line(g,xm));
+      });
+    }
+
+    // Line to station
+    if (station && !isSt) {
+      const lm=new THREE.LineBasicMaterial({color:0x001828,transparent:true,opacity:0.12});
+      const lg=new THREE.BufferGeometry().setFromPoints([w3(station),pos]);
+      scene.add(new THREE.Line(lg,lm));
+    }
+  });
+}
+
+function rebuild3DPoints() {
+  const keep=[];
+  scene.children.forEach(c=>{
+    if (c.type==='Points'||c.type==='GridHelper'||c.isAmbientLight||c.isDirectionalLight) keep.push(c);
+  });
+  scene.children.length=0;
+  keep.forEach(c=>scene.add(c));
+  build3DPoints();
+}
+
+function updateOrbit() {
+  if (!camera3d||!orb.target) return;
+  camera3d.position.set(
+    orb.target.x + orb.radius*Math.sin(orb.phi)*Math.sin(orb.theta),
+    orb.target.y + orb.radius*Math.cos(orb.phi),
+    orb.target.z + orb.radius*Math.sin(orb.phi)*Math.cos(orb.theta)
+  );
+  camera3d.lookAt(orb.target);
+}
+
+function animate3D() {
+  if (currentMode!=='3d') return;
+  animFrameId3d=requestAnimationFrame(animate3D);
+  scene.children.forEach(c=>{ if(c.userData&&c.userData.isRing) c.rotation.z+=0.003; });
+  updateOrbit();
+  renderer3d.render(scene,camera3d);
+}
+
+function stop3D() {
+  if (animFrameId3d) { cancelAnimationFrame(animFrameId3d); animFrameId3d=null; }
+}
+
+// Rebuild 3D when filters or points change
+const _origToggleFilter = toggleFilter;
+toggleFilter = function(type) {
+  _origToggleFilter(type);
+  if (currentMode==='3d'&&is3dInit) rebuild3DPoints();
+};
+
+</script>
+<!-- SETUP WIZARD -->
+<div id="wizard-overlay" class="hidden">
+  <div id="wizard-box">
+    <div class="wiz-header">
+      <div class="wiz-title">⚙ MULTIPLAYER EINRICHTUNG</div>
+      <button class="wiz-close" onclick="closeSetupWizard()">✕</button>
+    </div>
+
+    <!-- Aktueller Status -->
+    <div class="wiz-step">
+      <div class="wiz-step-title">
+        STATUS
+        <span id="wiz-badge" class="wiz-status-badge badge-none">NICHT KONFIGURIERT</span>
+      </div>
+      <div class="wiz-text" id="wiz-status-text">Konfiguriere GitHub Gist um Koordinaten mit allen Mitspielern zu teilen. Alle Änderungen werden automatisch synchronisiert.</div>
+    </div>
+
+    <!-- Schritt 1 -->
+    <div class="wiz-step">
+      <div class="wiz-step-title"><span class="wiz-step-num">1</span>GITHUB ACCOUNT</div>
+      <div class="wiz-text">
+        Falls noch kein Account vorhanden:<br>
+        → <a href="https://github.com/signup" target="_blank">github.com/signup</a> (kostenlos, keine Kreditkarte nötig)
+      </div>
+    </div>
+
+    <!-- Schritt 2 -->
+    <div class="wiz-step">
+      <div class="wiz-step-title"><span class="wiz-step-num">2</span>PERSONAL ACCESS TOKEN ERSTELLEN</div>
+      <div class="wiz-text">
+        1. Gehe zu: <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a><br>
+        2. <b>Note:</b> z.B. "SE Raumkarte"<br>
+        3. <b>Expiration:</b> "No expiration" wählen<br>
+        4. Unter <b>Scopes</b> nur <b>gist</b> anhaken ✓<br>
+        5. Auf <b>"Generate token"</b> klicken und Token kopieren
+      </div>
+      <div class="wiz-input-row">
+        <span class="wiz-label">TOKEN</span>
+        <input class="wiz-input" type="password" id="wiz-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+        <button class="wiz-btn" onclick="toggleTokenVisibility()">👁</button>
+      </div>
+      <div class="wiz-text" style="color:rgba(255,180,0,0.7);font-size:0.65rem;">⚠ Token nur einmal sichtbar! Direkt hier einfügen nach dem Erstellen.</div>
+    </div>
+
+    <!-- Schritt 3 -->
+    <div class="wiz-step">
+      <div class="wiz-step-title"><span class="wiz-step-num">3</span>GIST ERSTELLEN ODER VERBINDEN</div>
+      <div class="wiz-text">
+        <b>Option A:</b> Neues Gist automatisch erstellen (empfohlen für den ersten Spieler):
+      </div>
+      <div class="wiz-btn-row">
+        <button class="wiz-btn primary" onclick="createNewGist()">✦ NEUES GIST ERSTELLEN</button>
+      </div>
+      <div class="wiz-text" style="margin-top:12px">
+        <b>Option B:</b> Vorhandene Gist-ID eingeben (wenn ein Mitspieler schon eins erstellt hat):
+      </div>
+      <div class="wiz-input-row">
+        <span class="wiz-label">GIST ID</span>
+        <input class="wiz-input" type="text" id="wiz-gistid" placeholder="a1b2c3d4e5f6...">
+      </div>
+      <div id="wiz-gist-feedback" class="wiz-feedback"></div>
+    </div>
+
+    <!-- Schritt 4 -->
+    <div class="wiz-step">
+      <div class="wiz-step-title"><span class="wiz-step-num">4</span>SPIELERNAME</div>
+      <div class="wiz-text">Damit Mitspieler sehen wer zuletzt gespeichert hat:</div>
+      <div class="wiz-input-row">
+        <span class="wiz-label">NAME</span>
+        <input class="wiz-input" type="text" id="wiz-playername" placeholder="z.B. GandALF">
+      </div>
+    </div>
+
+    <!-- Gist ID teilen -->
+    <div class="wiz-step" id="wiz-share-section" style="display:none">
+      <div class="wiz-step-title">📋 GIST-ID MIT MITSPIELERN TEILEN</div>
+      <div class="wiz-text">Schicke diese ID deinen Mitspielern – sie geben sie in Schritt 3 ein:</div>
+      <div class="wiz-code" id="wiz-share-id">—</div>
+      <button class="wiz-btn" onclick="copyGistId()">📋 ID KOPIEREN</button>
+    </div>
+
+    <!-- Buttons -->
+    <div class="wiz-step">
+      <div class="wiz-btn-row">
+        <button class="wiz-btn primary" onclick="saveWizardConfig()">✓ SPEICHERN & VERBINDEN</button>
+        <button class="wiz-btn" onclick="testConnection()">⟳ VERBINDUNG TESTEN</button>
+        <button class="wiz-btn danger" onclick="resetWizardConfig()">✕ ZURÜCKSETZEN</button>
+      </div>
+      <div id="wiz-main-feedback" class="wiz-feedback"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Setup Wizard Logic ────────────────────────────────────────────────────────
+function openSetupWizard() {
+  loadConfig();
+  document.getElementById('wiz-token').value = gistConfig.token || '';
+  document.getElementById('wiz-gistid').value = gistConfig.gistId || '';
+  document.getElementById('wiz-playername').value = gistConfig.playerName || '';
+  updateWizardStatus();
+  if (gistConfig.gistId) {
+    document.getElementById('wiz-share-section').style.display = 'block';
+    document.getElementById('wiz-share-id').textContent = gistConfig.gistId;
+  }
+  document.getElementById('wizard-overlay').classList.remove('hidden');
+}
+
+function closeSetupWizard() {
+  document.getElementById('wizard-overlay').classList.add('hidden');
+}
+
+function toggleTokenVisibility() {
+  const inp = document.getElementById('wiz-token');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function updateWizardStatus() {
+  const badge = document.getElementById('wiz-badge');
+  const text = document.getElementById('wiz-status-text');
+  if (isConfigured()) {
+    badge.textContent = '✓ VERBUNDEN';
+    badge.className = 'wiz-status-badge badge-ok';
+    text.textContent = `Verbunden mit Gist ${gistConfig.gistId.substring(0,12)}... • Spieler: ${gistConfig.playerName||'–'} • Auto-Sync alle 30s`;
+  } else {
+    badge.textContent = 'NICHT KONFIGURIERT';
+    badge.className = 'wiz-status-badge badge-none';
+    text.textContent = 'Konfiguriere GitHub Gist um Koordinaten mit allen Mitspielern zu teilen.';
+  }
+}
+
+function wizFeedback(id, msg, ok=true) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.color = ok ? '#7fff7f' : '#ff6666';
+  if (ok) setTimeout(() => el.textContent='', 4000);
+}
+
+async function createNewGist() {
+  const token = document.getElementById('wiz-token').value.trim();
+  if (!token) { wizFeedback('wiz-gist-feedback','⚠ Bitte zuerst Token eingeben (Schritt 2)',false); return; }
+  wizFeedback('wiz-gist-feedback','⟳ Erstelle Gist...');
+  try {
+    const initData = {
+      version: 1, savedAt: new Date().toISOString(),
+      points: points.map(p => ({ name:p.name, x:p.x, y:p.y, z:p.z, type:p.type, originalType:p.originalType||null }))
+    };
+    const res = await fetch('https://api.github.com/gists', {
+      method: 'POST',
+      headers: { 'Authorization':`token ${token}`, 'Content-Type':'application/json', 'Accept':'application/vnd.github.v3+json' },
+      body: JSON.stringify({
+        description: 'Space Engineers Raumkarte GPS Daten',
+        public: false,
+        files: { 'se_gps_data.json': { content: JSON.stringify(initData, null, 2) } }
+      })
+    });
+    if (!res.ok) { const e=await res.json(); throw new Error(e.message); }
+    const gist = await res.json();
+    document.getElementById('wiz-gistid').value = gist.id;
+    document.getElementById('wiz-share-section').style.display = 'block';
+    document.getElementById('wiz-share-id').textContent = gist.id;
+    wizFeedback('wiz-gist-feedback', `✓ Gist erstellt! ID: ${gist.id.substring(0,16)}...`);
+  } catch(e) {
+    wizFeedback('wiz-gist-feedback', `⚠ Fehler: ${e.message}`, false);
+  }
+}
+
+async function testConnection() {
+  const token = document.getElementById('wiz-token').value.trim();
+  const gistId = document.getElementById('wiz-gistid').value.trim();
+  if (!token || !gistId) { wizFeedback('wiz-main-feedback','⚠ Token und Gist-ID eingeben',false); return; }
+  wizFeedback('wiz-main-feedback','⟳ Teste Verbindung...');
+  try {
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: { 'Authorization':`token ${token}`, 'Accept':'application/vnd.github.v3+json' }
+    });
+    if (!res.ok) { const e=await res.json(); throw new Error(e.message); }
+    const gist = await res.json();
+    const hasFile = !!gist.files['se_gps_data.json'];
+    wizFeedback('wiz-main-feedback', `✓ Verbindung OK! ${hasFile?'Datei gefunden.':'⚠ Datei se_gps_data.json nicht gefunden – neues Gist erstellen.'}`);
+  } catch(e) {
+    wizFeedback('wiz-main-feedback', `⚠ Fehler: ${e.message}`, false);
+  }
+}
+
+function saveWizardConfig() {
+  const token = document.getElementById('wiz-token').value.trim();
+  const gistId = document.getElementById('wiz-gistid').value.trim();
+  const playerName = document.getElementById('wiz-playername').value.trim() || 'Spieler';
+  if (!token) { wizFeedback('wiz-main-feedback','⚠ Token fehlt',false); return; }
+  if (!gistId) { wizFeedback('wiz-main-feedback','⚠ Gist-ID fehlt',false); return; }
+  gistConfig = { token, gistId, filename:'se_gps_data.json', playerName };
+  saveConfig();
+  updateWizardStatus();
+  wizFeedback('wiz-main-feedback','✓ Gespeichert! Lade Daten...');
+  setTimeout(async () => {
+    const gistPoints = await loadFromGist();
+    if (gistPoints && gistPoints.length > 0) {
+      points.length = 0;
+      points.push(...gistPoints);
+      station = points.find(p => p.type === 'station') || null;
+      draw();
+      if (currentMode==='3d'&&is3dInit) rebuild3DPoints();
+    }
+    startAutoSync();
+    setSaveStatus('saved', `✓ ${points.length} PUNKTE GELADEN`);
+    setTimeout(closeSetupWizard, 1000);
+  }, 500);
+}
+
+function resetWizardConfig() {
+  if (!confirm('Verbindung trennen und Konfiguration löschen?')) return;
+  gistConfig = { token:'', gistId:'', filename:'se_gps_data.json' };
+  saveConfig();
+  stopAutoSync();
+  document.getElementById('wiz-token').value='';
+  document.getElementById('wiz-gistid').value='';
+  document.getElementById('wiz-playername').value='';
+  document.getElementById('wiz-share-section').style.display='none';
+  updateWizardStatus();
+  setSaveStatus('error','⚠ NICHT KONFIGURIERT – KLICK ⚙');
+  wizFeedback('wiz-main-feedback','Konfiguration zurückgesetzt');
+}
+
+function copyGistId() {
+  const id = gistConfig.gistId || document.getElementById('wiz-gistid').value.trim();
+  if (!id) return;
+  navigator.clipboard.writeText(id).then(() => wizFeedback('wiz-main-feedback','✓ ID kopiert!')).catch(()=>{});
+}
+
+// Close on overlay click
+document.getElementById('wizard-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('wizard-overlay')) closeSetupWizard();
+});
+</script>
+
+</body>
+</html>
