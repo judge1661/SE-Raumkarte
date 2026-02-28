@@ -793,7 +793,19 @@
     <div class="info-row"><span class="info-label">TYP</span><span class="info-val" id="itype">—</span></div>
     <div class="info-row"><span class="info-label">STATUS</span><span class="info-val" id="istatus">Aktiv</span></div>
     <div id="info-dist">Entfernung zur Station:<br><span id="idist">—</span> km</div>
-    <div style="display:flex;gap:6px;margin-top:10px">
+    <!-- KOMMENTAR -->
+    <div style="margin-top:10px">
+      <div style="font-size:0.6rem;color:rgba(168,216,234,0.45);letter-spacing:1px;margin-bottom:4px">// KOMMENTAR</div>
+      <textarea id="info-comment"
+        placeholder="Notiz zu diesem Punkt..."
+        onblur="saveComment()"
+        oninput="markCommentDirty()"
+        style="width:100%;height:56px;background:rgba(0,200,255,0.04);border:1px solid rgba(0,200,255,0.15);border-radius:3px;color:#a8d8ea;font-family:'Share Tech Mono',monospace;font-size:0.68rem;padding:6px 8px;resize:none;outline:none;line-height:1.5;transition:border-color 0.2s"
+        onfocus="this.style.borderColor='rgba(0,200,255,0.4)'"
+        onblur="this.style.borderColor='rgba(0,200,255,0.15)';saveComment()"></textarea>
+      <div id="comment-status" style="font-size:0.6rem;height:14px;color:rgba(127,255,127,0.6);letter-spacing:1px;text-align:right"></div>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:4px">
       <button id="btn-erschoepft" class="btn-erschoepft" onclick="toggleErschoepft()">⊘ ERSCHÖPFT</button>
       <button class="btn-export-single" style="flex:1;margin-top:0" onclick="exportSingle()">📋 KOPIEREN</button>
     </div>
@@ -930,7 +942,8 @@ async function saveToGist() {
     savedBy: gistConfig.playerName || 'Spieler',
     points: points.map(p => ({
       name: p.name, x: p.x, y: p.y, z: p.z,
-      type: p.type, originalType: p.originalType || null
+      type: p.type, originalType: p.originalType || null,
+      comment: p.comment || null
     }))
   };
   try {
@@ -973,7 +986,8 @@ async function loadFromGist() {
       name: p.name,
       x: parseFloat(p.x), y: parseFloat(p.y), z: parseFloat(p.z),
       type: p.type || classifyPointByName(p.name),
-      originalType: p.originalType || undefined
+      originalType: p.originalType || undefined,
+      comment: p.comment || undefined
     }));
   } catch(e) {
     console.warn('Gist load error:', e);
@@ -1391,7 +1405,8 @@ function draw() {
     if (isHovered || (transform.scale > 0.006 && !isStation) || isStation) {
       ctx.font = isStation ? 'bold 11px Orbitron, monospace' : '9px Share Tech Mono, monospace';
       ctx.fillStyle = isStation ? col : (isHovered ? '#fff' : col+'cc');
-      ctx.fillText(p.name, sx+r+3, sy+3);
+      const label = p.name + (p.comment ? ' 💬' : '');
+      ctx.fillText(label, sx+r+3, sy+3);
     }
   });
 }
@@ -1464,6 +1479,10 @@ function showInfo(p) {
   document.getElementById('iz').textContent = p.z.toLocaleString('de-DE', {maximumFractionDigits:0});
   document.getElementById('itype').textContent = typeLabels[p.originalType || p.type];
 
+  // Kommentar
+  document.getElementById('info-comment').value = p.comment || '';
+  document.getElementById('comment-status').textContent = '';
+
   // Status + button
   const isEx = p.type === 'erschoepft';
   document.getElementById('istatus').textContent = isEx ? '⊘ Erschöpft' : '✓ Aktiv';
@@ -1479,6 +1498,19 @@ function showInfo(p) {
     document.getElementById('idist').textContent = dist.toLocaleString('de-DE',{maximumFractionDigits:1});
   }
   panel.classList.remove('hidden');
+}
+
+let commentDirty = false;
+function markCommentDirty() { commentDirty = true; document.getElementById('comment-status').textContent = ''; }
+function saveComment() {
+  if (!currentInfoPoint || !commentDirty) return;
+  const txt = document.getElementById('info-comment').value.trim();
+  currentInfoPoint.comment = txt || undefined;
+  commentDirty = false;
+  document.getElementById('comment-status').textContent = '✓ GESPEICHERT';
+  setTimeout(() => { document.getElementById('comment-status').textContent = ''; }, 2000);
+  triggerSave();
+  draw(); // refresh label if comment indicator visible
 }
 
 function askDelete() {
