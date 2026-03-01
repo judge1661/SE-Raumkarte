@@ -47,8 +47,8 @@
   /* Header */
   #header {
     position: fixed; top: 0; left: 0; right: 0;
-    z-index: 100;
-    padding: 14px 24px;
+    z-index: 400;
+    padding: 12px 24px;
     background: linear-gradient(180deg, rgba(0,10,20,0.95) 0%, transparent 100%);
     display: flex; align-items: center; gap: 20px;
     border-bottom: 1px solid rgba(0,200,255,0.15);
@@ -140,8 +140,9 @@
 
   /* Info Panel */
   #info-panel {
-    position: fixed; right: 20px; top: 70px;
-    width: 280px;
+    position: fixed;
+    right: 14px; top: 92px;
+    width: 284px;
     background: var(--panel);
     border: 1px solid rgba(0,200,255,0.2);
     border-radius: 4px;
@@ -182,14 +183,17 @@
 
   /* Legend */
   #legend {
-    position: fixed; left: 20px; bottom: 20px;
+    position: fixed;
+    left: 14px; bottom: 14px;
     z-index: 300;
     background: var(--panel);
     border: 1px solid rgba(0,200,255,0.15);
     border-radius: 4px;
-    padding: 14px;
-    min-width: 200px;
+    padding: 0;
+    min-width: 164px;
+    overflow: hidden;
   }
+  #legend-content { padding: 10px 14px; }
   #legend h3 {
     font-family: 'Orbitron', sans-serif;
     font-size: 0.6rem;
@@ -199,8 +203,11 @@
   }
   .legend-item {
     display: flex; align-items: center; gap: 8px;
-    margin-bottom: 6px; font-size: 0.68rem;
+    margin-bottom: 5px; font-size: 0.66rem;
   }
+  #legend > *:not(#legend-header) { padding-left: 14px; }
+  #legend > .legend-item:first-of-type { padding-top: 10px; }
+  #legend > .legend-item:last-of-type { padding-bottom: 10px; }
   .legend-dot {
     width: 10px; height: 10px; border-radius: 50%;
     flex-shrink: 0;
@@ -208,7 +215,8 @@
 
   /* Controls */
   #controls {
-    position: fixed; left: 20px; top: 70px;
+    position: fixed;
+    left: 14px; top: 92px;
     z-index: 300;
     display: flex; flex-direction: column; gap: 6px;
   }
@@ -231,7 +239,8 @@
 
   /* View toggle */
   #view-toggle {
-    position: fixed; left: 20px; top: 200px;
+    position: fixed;
+    left: 14px; top: 228px;
     z-index: 300;
   }
   .view-btn {
@@ -257,14 +266,16 @@
 
   /* Filter */
   #filter-panel {
-    position: fixed; left: 20px; top: 240px;
+    position: fixed;
+    left: 14px; top: 342px;
     z-index: 300;
     background: var(--panel);
     border: 1px solid rgba(0,200,255,0.15);
     border-radius: 4px;
-    padding: 10px;
-    width: 160px;
+    padding: 0;
+    width: 164px;
   }
+  #filter-content { padding: 8px 10px; }
   #filter-panel h4 {
     font-family: 'Orbitron', sans-serif;
     font-size: 0.58rem;
@@ -276,23 +287,34 @@
     display: flex; align-items: center; gap: 6px;
     margin-bottom: 4px; font-size: 0.65rem; cursor: pointer;
   }
+  #filter-panel > *:not(#filter-panel-header) { padding: 0 10px; }
+  #filter-panel > .filter-item:first-of-type { padding-top: 8px; }
+  #filter-panel > .filter-item:last-of-type  { padding-bottom: 8px; }
   .filter-item input { accent-color: var(--accent); cursor: pointer; }
 
   /* Search */
   #search-box {
-    position: fixed; top: 10px;
+    position: fixed;
+    top: 92px;
     left: 50%; transform: translateX(-50%);
     z-index: 300;
-    display: flex; align-items: center; gap: 0;
-    width: min(340px, calc(100vw - 340px));  /* schrumpft wenn Platz fehlt */
-    min-width: 140px;
+    display: flex; flex-direction: column;
+    width: 280px;
+    min-width: 180px;
+    max-width: calc(100vw - 340px);
     pointer-events: auto;
+    background: var(--panel);
+    border: 1px solid rgba(0,200,255,0.2);
+    border-radius: 4px;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0,0,0,0.6);
   }
   #search-input {
     flex: 1;
     background: rgba(0,10,20,0.92);
     border: 1px solid rgba(0,200,255,0.3);
     border-right: none;
+    border-top: none;
     color: var(--accent);
     font-family: 'Share Tech Mono', monospace;
     font-size: 0.78rem;
@@ -330,10 +352,12 @@
   }
   #search-btn:hover { background: rgba(0,200,255,0.2); }
   #search-results {
-    position: fixed; top: 48px; left: 50%; transform: translateX(-50%);
-    z-index: 300;
-    width: min(340px, calc(100vw - 340px));
-    min-width: 140px;
+    position: fixed;
+    top: 148px;
+    left: 50%; transform: translateX(-50%);
+    z-index: 299;
+    width: 280px;
+    min-width: 180px;
     background: rgba(0,10,20,0.97);
     border: 1px solid rgba(0,200,255,0.2);
     border-top: none;
@@ -368,8 +392,9 @@
 
   /* Add GPS Panel */
   #add-panel {
-    position: fixed; right: 20px; bottom: 20px;
-    width: 320px;
+    position: fixed;
+    right: 14px; bottom: 14px;
+    width: 300px;
     background: var(--panel);
     border: 1px solid rgba(0,200,255,0.2);
     border-radius: 4px;
@@ -731,9 +756,7 @@
   }
 
   /* ── AUTO-SKALIERUNG ─────────────────────────────────────────────────────── */
-  @media (max-width: 1100px) {
-    /* Search box zieht sich zusammen bevor sie den ⚙ Button überdeckt */
-    #search-box, #search-results { width: min(280px, calc(100vw - 380px)); }
+  
   }
   @media (max-width: 900px) {
     #header h1   { font-size: 0.75rem; letter-spacing: 2px; }
@@ -744,13 +767,9 @@
     #legend      { min-width: 160px; padding: 10px; bottom: 60px; }
     #filter-panel { font-size: 0.62rem; }
     #add-panel   { font-size: 0.7rem; }
-    #search-box, #search-results { width: min(220px, calc(100vw - 320px)); }
   }
   @media (max-width: 720px) {
     /* Search wandert unter den Header */
-    #search-box    { top: 52px; left: 50%; width: calc(100vw - 120px); transform: translateX(-50%); }
-    #search-results{ top: 88px; left: 50%; width: calc(100vw - 120px); transform: translateX(-50%); }
-    #search-btn    { display: none; }
   }
   @media (max-width: 600px) {
     #header      { padding: 8px 12px; gap: 8px; flex-wrap: nowrap; }
@@ -760,7 +779,24 @@
     #info-panel  { width: 95vw; right: 2.5vw; top: 56px; font-size: 0.75rem; }
     #legend      { left: 8px; bottom: 70px; min-width: 140px; font-size: 0.6rem; }
     #filter-panel { font-size: 0.58rem; }
-    #players-panel { width: 160px !important; }
+    #players-panel {
+    position: fixed;
+    top: 92px;
+    right: 320px;
+    z-index: 300;
+    width: 200px;
+    min-width: 160px;
+    background: rgba(3,12,25,0.95);
+    border: 1px solid rgba(0,200,255,0.22);
+    border-radius: 4px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.7);
+    font-family: 'Share Tech Mono', monospace;
+    max-height: 280px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.2s;
+  }
     #add-panel   { font-size: 0.65rem; }
     #conn-status { display: none; }
     #save-status { min-width: 0; font-size: 0.55rem; }
@@ -783,8 +819,8 @@
   /* ── SPIELER-PANEL: frei schwebend, standardmässig unter Suchleiste ────── */
   #players-panel {
     position: fixed;
-    top: 56px; left: calc(50% - 110px);
-    z-index: 250;                         /* unter Info-Panel, über Karte */
+    top: 92px; left: calc(50% + 170px);
+    z-index: 300;
     width: 220px;
     min-width: 160px;
     background: rgba(3,12,25,0.95);
@@ -842,10 +878,9 @@
   /* ── QUADRANTEN-BAR ──────────────────────────────────────────────────────── */
   #quadrant-bar-wrap {
     position: fixed;
-    top: 50px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 290;
+    top: 52px;
+    left: 0; right: 0;
+    z-index: 390;
     display: flex;
     justify-content: center;
     pointer-events: none;
@@ -862,7 +897,7 @@
     border: 1px solid rgba(0,200,255,0.1);
     border-top: none;
     backdrop-filter: blur(6px);
-    max-width: calc(100vw - 200px);
+    max-width: calc(100vw - 40px);
     box-shadow: 0 4px 16px rgba(0,0,0,0.5);
   }
   #quadrant-bar .qbtn {
@@ -889,7 +924,7 @@
     font-weight: bold;
   }
   @media (max-width: 720px) {
-    #quadrant-bar-wrap { top: 88px; }
+    #quadrant-bar-wrap { top: 52px; }
     #quadrant-bar { max-width: calc(100vw - 20px); }
   }
 
@@ -1005,9 +1040,15 @@
 
 <!-- SUCHE -->
 <div id="search-box">
-  <input type="text" id="search-input" placeholder="Suche: Name, Ressource, Nummer..." autocomplete="off" oninput="onSearch()" onkeydown="onSearchKey(event)">
-  <button id="search-clear" onclick="clearSearch()">✕</button>
-  <button id="search-btn" onclick="onSearch()">SUCHE</button>
+  <div id="search-box-header" class="panel-header" style="width:100%;border-radius:3px 3px 0 0;border-bottom:1px solid rgba(0,200,255,0.15)">
+    <span class="grip">⠿</span>
+    <span class="ph-title">SUCHE</span>
+  </div>
+  <div style="display:flex;width:100%">
+    <input type="text" id="search-input" placeholder="Name, Ressource, Koordinate..." autocomplete="off" oninput="onSearch()" onkeydown="onSearchKey(event)" style="flex:1;border-radius:0;border-top:none">
+    <button id="search-clear" onclick="clearSearch()" style="border-top:none">✕</button>
+    <button id="search-btn" onclick="onSearch()" style="border-radius:0 0 3px 0;border-top:none">SUCHE</button>
+  </div>
 </div>
 <div id="search-results"></div>
 
@@ -2013,7 +2054,7 @@ canvas.addEventListener('wheel', e => {
 canvas.addEventListener('mousedown', e => {
   // Kein Canvas-Drag wenn ein Panel-Element getroffen wurde
   const hit = document.elementFromPoint(e.clientX, e.clientY);
-  if (hit && hit.closest('#info-panel, #legend, #filter-panel, #add-panel, #players-panel, #controls, #view-toggle, #header, #search-box, #quadrant-bar-wrap')) return;
+  if (hit && hit.closest('#info-panel, #legend, #filter-panel, #add-panel, #players-panel, #controls, #view-toggle, #header, #search-box, #search-results, #quadrant-bar-wrap')) return;
   dragging = true;
   lastMouse = { x: e.clientX, y: e.clientY };
   document.getElementById('map-container').classList.add('grabbing');
@@ -2295,6 +2336,8 @@ function onSearch() {
 
   if (!matches.length) {
     resultsEl.innerHTML = '<div style="padding:10px 14px;font-size:0.68rem;color:rgba(168,216,234,0.4)">Keine Treffer gefunden</div>';
+    const sb2 = document.getElementById('search-box');
+    if (sb2) { const r=sb2.getBoundingClientRect(); resultsEl.style.left=r.left+'px'; resultsEl.style.top=r.bottom+'px'; resultsEl.style.width=r.width+'px'; }
     resultsEl.style.display = 'block';
     return;
   }
@@ -2318,6 +2361,14 @@ function onSearch() {
   });
 
   resultsEl.innerHTML = html;
+  // Resultate unter dem Suchfeld positionieren (auch nach Drag)
+  const sb = document.getElementById('search-box');
+  if (sb) {
+    const r = sb.getBoundingClientRect();
+    resultsEl.style.left  = r.left + 'px';
+    resultsEl.style.top   = r.bottom + 'px';
+    resultsEl.style.width = r.width + 'px';
+  }
   resultsEl.style.display = 'block';
 }
 
@@ -2895,8 +2946,9 @@ function makeDraggable(panelEl, handleEl) {
     e.preventDefault();
     e.stopPropagation();
 
-    // Immer frisch aus getBoundingClientRect — egal ob right/bottom oder left/top gesetzt
+    // Immer frisch aus getBoundingClientRect — egal ob right/bottom/transform gesetzt
     const r = panelEl.getBoundingClientRect();
+    panelEl.style.transform = 'none';  // reset translateX(-50%) etc.
     panelEl.style.left   = r.left + 'px';
     panelEl.style.top    = r.top  + 'px';
     panelEl.style.right  = 'auto';
@@ -2919,6 +2971,15 @@ function makeDraggable(panelEl, handleEl) {
       ny = Math.max(0, Math.min(window.innerHeight - panelEl.offsetHeight, ny));
       panelEl.style.left = nx + 'px';
       panelEl.style.top  = ny + 'px';
+      // Suchresultate folgen dem Suchfeld
+      if (panelEl.id === 'search-box') {
+        const sr = document.getElementById('search-results');
+        if (sr && sr.style.display !== 'none') {
+          sr.style.left  = nx + 'px';
+          sr.style.top   = (ny + panelEl.offsetHeight) + 'px';
+          sr.style.width = panelEl.offsetWidth + 'px';
+        }
+      }
     }
 
     function onUp() {
@@ -2936,11 +2997,12 @@ function makeDraggable(panelEl, handleEl) {
 // Panels nach DOM-Load registrieren
 document.addEventListener('DOMContentLoaded', function() {
   const panels = [
-    { panel: 'info-panel',    handle: 'info-panel-header' },
-    { panel: 'legend',        handle: 'legend-header'     },
+    { panel: 'info-panel',    handle: 'info-panel-header'    },
+    { panel: 'legend',        handle: 'legend-header'        },
     { panel: 'players-panel', handle: 'players-panel-header' },
-    { panel: 'filter-panel',  handle: 'filter-panel-header' },
-    { panel: 'add-panel',     handle: 'add-panel-header'  },
+    { panel: 'filter-panel',  handle: 'filter-panel-header'  },
+    { panel: 'add-panel',     handle: 'add-panel-header'     },
+    { panel: 'search-box',    handle: 'search-box-header'    },
   ];
   panels.forEach(function(cfg) {
     const p = document.getElementById(cfg.panel);
