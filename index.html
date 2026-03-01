@@ -927,21 +927,27 @@
     background: rgba(0,200,255,0.03);
     border: 1px solid rgba(0,200,255,0.1);
     border-radius: 3px;
-    padding: 10px 12px;
-    margin-bottom: 8px;
+    padding: 11px 13px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
   }
-  .quad-editor-row input, .quad-editor-row select {
+  .quad-editor-row:hover { border-color: rgba(0,200,255,0.2); }
+  .quad-editor-row input[type=text],
+  .quad-editor-row input[type=number] {
     background: rgba(0,200,255,0.05);
     border: 1px solid rgba(0,200,255,0.15);
     border-radius: 2px;
     color: #a8d8ea;
     font-family: 'Share Tech Mono', monospace;
     font-size: 0.65rem;
-    padding: 3px 7px;
+    padding: 4px 8px;
     outline: none;
+    transition: border-color 0.15s;
   }
-  .quad-editor-row input[type=number] { width: 90px; }
-  .quad-editor-row input[type=text]   { flex: 1; }
+  .quad-editor-row input:focus { border-color: rgba(0,200,255,0.45); }
+  .quad-editor-row input[type=number] { width: 100%; }
+  .quad-editor-row input[type=text]   { width: 100%; }
+  .quad-editor-row input[type=range]  { cursor: pointer; }
 
 </style>
 </head>
@@ -2667,46 +2673,159 @@ function startAutoSyncCustom(sec) {
 }
 
 // ── QUADRANT EDITOR ───────────────────────────────────────────────────────────
+function fmtKm(m) {
+  if (m === 0) return '∞ (kein Filter)';
+  if (m >= 1000000) return (m/1000000).toFixed(2)+' Mm';
+  if (m >= 1000)    return (m/1000).toFixed(1)+' km';
+  return m+' m';
+}
+
 function renderQuadrantEditor() {
   const el = document.getElementById('quadrant-list-editor');
   if (!el) return;
-  el.innerHTML = quadrants.map((q,i) => `
+  el.innerHTML = quadrants.map((q,i) => {
+    const hasRadius = q.radius > 0;
+    const ptsIn = points.filter(p => getPointQuadrant(p) === q.id).length;
+    return `
     <div class="quad-editor-row" id="qrow-${i}">
-      <div style="display:flex;gap:6px;align-items:center;margin-bottom:7px">
-        <input type="text" value="${q.icon||'🔵'}" style="width:36px;text-align:center" onchange="updateQuadrant(${i},'icon',this.value)" title="Icon">
-        <input type="text" value="${q.name}" style="flex:1" onchange="updateQuadrant(${i},'name',this.value)" placeholder="Name">
-        <input type="color" value="${q.color||'#00c8ff'}" style="width:32px;height:26px;padding:0;border:none;cursor:pointer;background:none" onchange="updateQuadrant(${i},'color',this.value)" title="Farbe">
-        <button onclick="removeQuadrant(${i})" style="background:rgba(255,68,68,0.07);border:1px solid rgba(255,68,68,0.2);color:rgba(255,100,100,0.6);font-size:0.75rem;padding:2px 7px;border-radius:3px;cursor:pointer" ${quadrants.length<=1?'disabled':''}>✕</button>
+
+      <!-- Titelzeile: Icon · Name · Farbe · Löschen -->
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
+        <input type="text" value="${q.icon||'🔵'}" style="width:34px;text-align:center;font-size:1rem"
+          onchange="updateQuadrant(${i},'icon',this.value)" title="Emoji-Icon">
+        <input type="text" value="${q.name}" style="flex:1"
+          onchange="updateQuadrant(${i},'name',this.value)" placeholder="Sektor-Name">
+        <input type="color" value="${q.color||'#00c8ff'}"
+          style="width:30px;height:26px;padding:0;border:none;cursor:pointer;background:none;border-radius:3px"
+          onchange="updateQuadrant(${i},'color',this.value)" title="Farbe">
+        <span style="font-size:0.55rem;color:rgba(168,216,234,0.35);white-space:nowrap">${ptsIn} Pkt</span>
+        <button onclick="removeQuadrant(${i})"
+          style="background:rgba(255,68,68,0.07);border:1px solid rgba(255,68,68,0.2);color:rgba(255,100,100,0.55);font-size:0.75rem;padding:2px 8px;border-radius:3px;cursor:pointer"
+          ${quadrants.length<=1?'disabled title="Letzter Sektor"':''}>✕</button>
       </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:0.58rem;color:rgba(168,216,234,0.4);min-width:50px">ZENTRUM:</span>
-        <input type="number" value="${q.center.x}" onchange="updateQuadrantCenter(${i},'x',this.value)" title="X" placeholder="X">
-        <input type="number" value="${q.center.y}" onchange="updateQuadrantCenter(${i},'y',this.value)" title="Y" placeholder="Y">
-        <input type="number" value="${q.center.z}" onchange="updateQuadrantCenter(${i},'z',this.value)" title="Z" placeholder="Z">
-        <span style="font-size:0.58rem;color:rgba(168,216,234,0.4)">R:</span>
-        <input type="number" value="${q.radius}" onchange="updateQuadrant(${i},'radius',parseInt(this.value)||0)" style="width:80px" title="Radius (0=kein Bereich)">
+
+      <!-- Zentrum-Koordinaten -->
+      <div style="margin-bottom:8px">
+        <div style="font-size:0.55rem;color:rgba(168,216,234,0.35);letter-spacing:1px;margin-bottom:4px">ZENTRUM (X / Y / Z)</div>
+        <div style="display:flex;gap:5px">
+          <input type="number" value="${q.center.x}" placeholder="X"
+            style="flex:1;min-width:0" onchange="updateQuadrantCenter(${i},'x',this.value)" title="X-Koordinate des Mittelpunkts">
+          <input type="number" value="${q.center.y}" placeholder="Y"
+            style="flex:1;min-width:0" onchange="updateQuadrantCenter(${i},'y',this.value)" title="Y-Koordinate">
+          <input type="number" value="${q.center.z}" placeholder="Z"
+            style="flex:1;min-width:0" onchange="updateQuadrantCenter(${i},'z',this.value)" title="Z-Koordinate">
+        </div>
       </div>
-    </div>`
-  ).join('');
+
+      <!-- Sektorgrösse: Slider + Zahleneingabe -->
+      <div style="background:rgba(0,200,255,0.03);border:1px solid rgba(0,200,255,0.1);border-radius:3px;padding:8px 10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-size:0.55rem;color:rgba(168,216,234,0.35);letter-spacing:1px">SEKTORGRÖSSE (RADIUS)</span>
+          <span id="qrad-display-${i}" style="font-size:0.65rem;color:#ff6b35;font-weight:bold;min-width:80px;text-align:right">${fmtKm(q.radius)}</span>
+        </div>
+        <input type="range" id="qrad-slider-${i}"
+          min="0" max="200000" step="1000"
+          value="${Math.min(q.radius,200000)}"
+          style="width:100%;accent-color:#ff6b35;margin-bottom:6px"
+          oninput="onRadiusSlider(${i},this.value)">
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="number" id="qrad-num-${i}"
+            value="${q.radius}" min="0" step="1000" placeholder="Radius in Metern"
+            style="flex:1;min-width:0"
+            onchange="onRadiusInput(${i},this.value)"
+            title="Exakter Radius in Metern (0 = kein Radius-Filter)">
+          <span style="font-size:0.58rem;color:rgba(168,216,234,0.35);white-space:nowrap">m</span>
+          <button onclick="onRadiusInput(${i},0)"
+            style="background:rgba(255,107,53,0.07);border:1px solid rgba(255,107,53,0.2);color:rgba(255,107,53,0.6);font-family:'Share Tech Mono',monospace;font-size:0.55rem;padding:3px 8px;border-radius:3px;cursor:pointer"
+            title="Radius auf 0 setzen (Outer Space / kein Filter)">∞</button>
+        </div>
+        <!-- Schnell-Presets -->
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:7px">
+          <span style="font-size:0.52rem;color:rgba(168,216,234,0.25);align-self:center">Preset:</span>
+          ${[9500,19000,30000,60000,80000,120000].map(v =>
+            `<button onclick="onRadiusInput(${i},${v})" data-preset="${v}"
+              style="background:${q.radius===v?'rgba(255,107,53,0.18)':'rgba(255,255,255,0.03)'};border:1px solid ${q.radius===v?'rgba(255,107,53,0.5)':'rgba(168,216,234,0.12)'};color:${q.radius===v?'#ff6b35':'rgba(168,216,234,0.45)'};font-family:'Share Tech Mono',monospace;font-size:0.52rem;padding:2px 6px;border-radius:2px;cursor:pointer;white-space:nowrap"
+              title="${fmtKm(v)}">${fmtKm(v)}</button>`
+          ).join('')}
+        </div>
+      </div>
+
+    </div>`;
+  }).join('');
 }
 
 function updateQuadrant(i, key, val) {
-  quadrants[i][key] = key==='radius'?parseInt(val)||0:val;
-  saveQuadrantsToStorage(); renderQuadrantBar();
+  quadrants[i][key] = key==='radius' ? (parseInt(val)||0) : val;
+  saveQuadrantsToStorage(); renderQuadrantBar(); safeRedraw();
 }
 function updateQuadrantCenter(i, axis, val) {
   quadrants[i].center[axis] = parseFloat(val)||0;
-  saveQuadrantsToStorage(); renderQuadrantBar();
+  saveQuadrantsToStorage(); renderQuadrantBar(); safeRedraw();
 }
 function removeQuadrant(i) {
   if (quadrants.length<=1) return;
   quadrants.splice(i,1); saveQuadrantsToStorage();
-  renderQuadrantEditor(); renderQuadrantBar();
+  renderQuadrantEditor(); renderQuadrantBar(); safeRedraw();
 }
 function addQuadrant() {
-  quadrants.push({ id:'custom_'+Date.now(), name:'Neuer Sektor', icon:'⭐', color:'#a0a0ff',
-    center:{x:0,y:0,z:0}, radius:50000, bodies:[] });
-  saveQuadrantsToStorage(); renderQuadrantEditor(); renderQuadrantBar();
+  // Offset damit neuer Sektor nicht über existierenden liegt
+  const idx = quadrants.filter(q=>q.id.startsWith('custom_')).length;
+  const offsets = [{x:500000,y:0,z:0},{x:0,y:500000,z:0},{x:0,y:0,z:500000},
+                   {x:-500000,y:0,z:0},{x:500000,y:500000,z:0}];
+  const off = offsets[idx % offsets.length];
+  const newQ = { id:'custom_'+Date.now(), name:'Neuer Sektor '+(quadrants.length+1),
+    icon:'⭐', color:'#a0a0ff', center:off, radius:60000, bodies:[] };
+  quadrants.push(newQ);
+  saveQuadrantsToStorage();
+  renderQuadrantEditor();
+  renderQuadrantBar();
+  safeRedraw();
+  // Scroll zum neuen Eintrag
+  setTimeout(()=>{
+    const rows = document.querySelectorAll('.quad-editor-row');
+    if (rows.length) rows[rows.length-1].scrollIntoView({behavior:'smooth',block:'nearest'});
+    const fb = document.getElementById('quad-editor-feedback');
+    if (fb) { fb.textContent='✓ Neuer Sektor hinzugefügt — Zentrum und Radius anpassen'; fb.style.color='#7fff7f'; setTimeout(()=>fb.textContent='',4000); }
+  }, 100);
+}
+
+function onRadiusSlider(i, val) {
+  const v = parseInt(val)||0;
+  quadrants[i].radius = v;
+  const num = document.getElementById('qrad-num-'+i);
+  const disp = document.getElementById('qrad-display-'+i);
+  if (num)  num.value = v;
+  if (disp) disp.textContent = fmtKm(v);
+  // Presets neu highlighten
+  renderRadiusPresets(i, v);
+  saveQuadrantsToStorage(); renderQuadrantBar(); safeRedraw();
+}
+
+function onRadiusInput(i, val) {
+  const v = parseInt(val)||0;
+  quadrants[i].radius = v;
+  const slider = document.getElementById('qrad-slider-'+i);
+  const num    = document.getElementById('qrad-num-'+i);
+  const disp   = document.getElementById('qrad-display-'+i);
+  if (slider) slider.value = Math.min(v, 200000);
+  if (num)    num.value = v;
+  if (disp)   disp.textContent = fmtKm(v);
+  renderRadiusPresets(i, v);
+  saveQuadrantsToStorage(); renderQuadrantBar(); safeRedraw();
+}
+
+function renderRadiusPresets(i, activeVal) {
+  // Re-render nur die Preset-Buttons via DOM (kein full re-render)
+  const row = document.getElementById('qrow-'+i);
+  if (!row) return;
+  const presets = row.querySelectorAll('[data-preset]');
+  presets.forEach(btn => {
+    const v = parseInt(btn.dataset.preset);
+    const on = v === activeVal;
+    btn.style.background = on ? 'rgba(255,107,53,0.18)' : 'rgba(255,255,255,0.03)';
+    btn.style.borderColor = on ? 'rgba(255,107,53,0.5)' : 'rgba(168,216,234,0.12)';
+    btn.style.color = on ? '#ff6b35' : 'rgba(168,216,234,0.45)';
+  });
 }
 
 // Quadrant-Filter auf draw() anwenden
@@ -3419,7 +3538,7 @@ document.getElementById('wizard-overlay').addEventListener('click',e=>{
 
 <!-- ═══════════════════════════════════════════════════════ SETTINGS PANEL -->
 <div id="settings-overlay" style="display:none;position:fixed;inset:0;z-index:3500;background:rgba(0,5,15,0.9);align-items:center;justify-content:center;backdrop-filter:blur(6px)">
-<div id="settings-box" style="background:rgba(3,12,25,0.99);border:1px solid rgba(255,107,53,0.3);border-radius:6px;width:540px;max-height:88vh;overflow-y:auto;box-shadow:0 0 80px rgba(255,107,53,0.08);font-family:'Share Tech Mono',monospace">
+<div id="settings-box" style="background:rgba(3,12,25,0.99);border:1px solid rgba(255,107,53,0.3);border-radius:6px;width:min(620px,96vw);max-height:88vh;overflow-y:auto;box-shadow:0 0 80px rgba(255,107,53,0.08);font-family:'Share Tech Mono',monospace">
 
   <!-- Header -->
   <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(255,107,53,0.15);background:rgba(255,107,53,0.04)">
