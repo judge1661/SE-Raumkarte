@@ -1172,6 +1172,9 @@
 // ═══════════════════════════════════════════════════════════════════════════
 //  SE RAUMKARTE  v2.3  –  GitHub Gist Multiplayer
 // ═══════════════════════════════════════════════════════════════════════════
+// Global state — declared first so all functions across all script blocks can use them
+let currentMode = '2d';
+let is3dInit    = false;
 const APP_VERSION = '2.3';
 const CFG_KEY     = 'se_raumkarte_v23';
 let cfg = { token:'', gistId:'', player:'Spieler' };
@@ -2756,16 +2759,16 @@ function renderQuadrantEditor() {
 
 function updateQuadrant(i, key, val) {
   quadrants[i][key] = key==='radius' ? (parseInt(val)||0) : val;
-  saveQuadrantsToStorage(); renderQuadrantBar(); safeRedraw();
+  saveQuadrantsToStorage(); renderQuadrantBar(); draw();
 }
 function updateQuadrantCenter(i, axis, val) {
   quadrants[i].center[axis] = parseFloat(val)||0;
-  saveQuadrantsToStorage(); renderQuadrantBar(); safeRedraw();
+  saveQuadrantsToStorage(); renderQuadrantBar(); draw();
 }
 function removeQuadrant(i) {
   if (quadrants.length<=1) return;
   quadrants.splice(i,1); saveQuadrantsToStorage();
-  renderQuadrantEditor(); renderQuadrantBar(); safeRedraw();
+  renderQuadrantEditor(); renderQuadrantBar(); draw();
 }
 function addQuadrant() {
   // Offset damit neuer Sektor nicht über existierenden liegt
@@ -2779,7 +2782,7 @@ function addQuadrant() {
   saveQuadrantsToStorage();
   renderQuadrantEditor();
   renderQuadrantBar();
-  safeRedraw();
+  draw();
   // Scroll zum neuen Eintrag
   setTimeout(()=>{
     const rows = document.querySelectorAll('.quad-editor-row');
@@ -2798,7 +2801,7 @@ function onRadiusSlider(i, val) {
   if (disp) disp.textContent = fmtKm(v);
   // Presets neu highlighten
   renderRadiusPresets(i, v);
-  saveQuadrantsToStorage(); renderQuadrantBar(); safeRedraw();
+  saveQuadrantsToStorage(); renderQuadrantBar(); draw();
 }
 
 function onRadiusInput(i, val) {
@@ -2811,7 +2814,7 @@ function onRadiusInput(i, val) {
   if (num)    num.value = v;
   if (disp)   disp.textContent = fmtKm(v);
   renderRadiusPresets(i, v);
-  saveQuadrantsToStorage(); renderQuadrantBar(); safeRedraw();
+  saveQuadrantsToStorage(); renderQuadrantBar(); draw();
 }
 
 function renderRadiusPresets(i, activeVal) {
@@ -2911,7 +2914,6 @@ function isPointFiltered(p) {
 })();
 
 // ─── MODE SWITCHING ──────────────────────────────────────────────────────────
-let currentMode = '2d';
 
 function setMode(mode) {
   currentMode = mode;
@@ -2930,7 +2932,6 @@ function setMode(mode) {
 // ─── 3D ENGINE ───────────────────────────────────────────────────────────────
 let scene, camera3d, renderer3d, animFrameId3d;
 let spheres3d = [];
-let is3dInit = false;
 let orb = { theta:0.5, phi:1.1, radius:160000, target:null, dragging:false, rightDrag:false, lastX:0, lastY:0 };
 
 function w3(p) {
@@ -3403,7 +3404,7 @@ async function wizSave() {
       syncHash=makeHash(loaded);
       station=points.find(p=>p.type==='station')||null;
       draw();
-      if(currentMode==='3d'&&is3dInit) rebuild3DPoints();
+      if(typeof currentMode!=='undefined'&&currentMode==='3d'&&typeof is3dInit!=='undefined'&&is3dInit&&typeof rebuild3DPoints==='function') rebuild3DPoints();
       setSaveStatus('saved','✓ '+points.length+' PUNKTE GELADEN');
     } else {
       // Neues Gist → aktuelle Punkte hochladen
