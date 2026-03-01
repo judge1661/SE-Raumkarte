@@ -209,6 +209,7 @@
     z-index: 200;
     display: flex; flex-direction: column; gap: 6px;
   }
+  /* Controls haben z-index 200, players z-index 400 — panel liegt drüber, darf aber nicht überlappen */
   .ctrl-btn {
     background: var(--panel);
     border: 1px solid rgba(0,200,255,0.2);
@@ -776,25 +777,26 @@
   #add-panel   { max-height: 60vh; overflow-y: auto; }
 
 
-  /* ── SPIELER-PANEL ─────────────────────────────────────────────────────── */
+  /* ── SPIELER-PANEL: frei schwebend, standardmässig unter Suchleiste ────── */
   #players-panel {
     position: fixed;
-    top: 62px; left: 10px;
-    z-index: 500;
-    width: 200px;
-    min-width: 140px;
-    background: rgba(3,12,25,0.93);
-    border: 1px solid rgba(0,200,255,0.2);
+    top: 56px; left: calc(50% - 110px); /* direkt unter Suchfeld, zentriert */
+    z-index: 250;                         /* unter Info-Panel, über Karte */
+    width: 220px;
+    min-width: 160px;
+    background: rgba(3,12,25,0.95);
+    border: 1px solid rgba(0,200,255,0.22);
     border-radius: 4px;
-    box-shadow: 0 0 30px rgba(0,0,0,0.6);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.7);
     font-family: 'Share Tech Mono', monospace;
-    max-height: calc(100vh - 80px);
+    max-height: 280px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    transition: box-shadow 0.2s;
   }
   #players-panel-header {
-    padding: 7px 11px;
+    padding: 6px 10px;
     background: rgba(0,200,255,0.07);
     border-bottom: 1px solid rgba(0,200,255,0.12);
     display: flex;
@@ -803,35 +805,143 @@
     cursor: move;
     user-select: none;
     flex-shrink: 0;
+    gap: 8px;
   }
   #players-panel-header span:first-child {
-    font-size: 0.58rem;
+    font-size: 0.57rem;
     letter-spacing: 2px;
     color: #00c8ff;
   }
   #players-online-count {
-    font-size: 0.6rem;
+    font-size: 0.58rem;
     background: rgba(0,200,255,0.12);
     color: #00c8ff;
     border-radius: 10px;
     padding: 1px 7px;
-    min-width: 22px;
+    min-width: 20px;
     text-align: center;
   }
   #players-list {
-    padding: 6px 10px;
-    font-size: 0.64rem;
+    padding: 5px 10px;
+    font-size: 0.63rem;
     overflow-y: auto;
     flex: 1;
-    max-height: 220px;
   }
   #players-footer {
-    padding: 4px 10px 5px;
+    padding: 3px 10px 4px;
     border-top: 1px solid rgba(0,200,255,0.07);
-    font-size: 0.52rem;
-    color: rgba(168,216,234,0.22);
+    font-size: 0.5rem;
+    color: rgba(168,216,234,0.2);
     flex-shrink: 0;
   }
+
+
+  /* ── QUADRANTEN-BAR ──────────────────────────────────────────────────────── */
+  #quadrant-bar-wrap {
+    position: fixed;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 290;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+  }
+  #quadrant-bar {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+    justify-content: center;
+    pointer-events: auto;
+    padding: 4px 8px 5px;
+    background: rgba(0,4,12,0.82);
+    border-radius: 0 0 6px 6px;
+    border: 1px solid rgba(0,200,255,0.1);
+    border-top: none;
+    backdrop-filter: blur(6px);
+    max-width: calc(100vw - 200px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
+  #quadrant-bar .qbtn {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(168,216,234,0.1);
+    color: rgba(168,216,234,0.45);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.57rem;
+    letter-spacing: 1px;
+    padding: 3px 10px 4px;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  #quadrant-bar .qbtn:hover {
+    background: rgba(168,216,234,0.08);
+    color: rgba(168,216,234,0.8);
+  }
+  #quadrant-bar .qbtn.active {
+    font-weight: bold;
+  }
+  @media (max-width: 720px) {
+    #quadrant-bar-wrap { top: 88px; }
+    #quadrant-bar { max-width: calc(100vw - 20px); }
+  }
+
+
+  /* ── SETTINGS ────────────────────────────────────────────────────────────── */
+  .stab {
+    flex: 1;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: rgba(168,216,234,0.4);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 1px;
+    padding: 10px 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .stab:hover { color: #ff6b35; }
+  .stab.active { color: #ff6b35; border-bottom-color: #ff6b35; background: rgba(255,107,53,0.04); }
+  .sync-interval-btn {
+    background: rgba(0,200,255,0.05);
+    border: 1px solid rgba(0,200,255,0.15);
+    color: rgba(168,216,234,0.5);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    padding: 5px 14px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .sync-interval-btn.active {
+    background: rgba(0,200,255,0.12);
+    border-color: rgba(0,200,255,0.4);
+    color: #00c8ff;
+  }
+  .quad-editor-row {
+    background: rgba(0,200,255,0.03);
+    border: 1px solid rgba(0,200,255,0.1);
+    border-radius: 3px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .quad-editor-row input, .quad-editor-row select {
+    background: rgba(0,200,255,0.05);
+    border: 1px solid rgba(0,200,255,0.15);
+    border-radius: 2px;
+    color: #a8d8ea;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    padding: 3px 7px;
+    outline: none;
+  }
+  .quad-editor-row input[type=number] { width: 90px; }
+  .quad-editor-row input[type=text]   { flex: 1; }
 
 </style>
 </head>
@@ -852,17 +962,23 @@
   <div id="save-status" style="font-size:0.62rem;letter-spacing:1px;transition:color 0.3s;min-width:180px;text-align:center;"></div>
   <div id="conn-status" style="font-size:0.58rem;letter-spacing:1px;color:#ff4444;white-space:nowrap;padding:0 6px">🔴 GETRENNT</div>
   <span id="app-version" style="font-size:0.52rem;color:rgba(168,216,234,0.22);letter-spacing:2px;padding-right:4px"></span>
-  <button onclick="openSetupWizard()" title="Multiplayer Einrichtung" style="background:rgba(0,200,255,0.07);border:1px solid rgba(0,200,255,0.2);color:rgba(0,200,255,0.6);font-size:1rem;width:32px;height:32px;border-radius:3px;cursor:pointer;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.color='#00c8ff';this.style.background='rgba(0,200,255,0.15)'" onmouseout="this.style.color='rgba(0,200,255,0.6)';this.style.background='rgba(0,200,255,0.07)'">⚙</button>
+  <button onclick="openSetupWizard()" title="GitHub Verbindung" style="background:rgba(0,200,255,0.07);border:1px solid rgba(0,200,255,0.2);color:rgba(0,200,255,0.6);font-size:1rem;width:32px;height:32px;border-radius:3px;cursor:pointer;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.color='#00c8ff';this.style.background='rgba(0,200,255,0.15)'" onmouseout="this.style.color='rgba(0,200,255,0.6)';this.style.background='rgba(0,200,255,0.07)'">⚙</button>
+  <button onclick="openSettings()" title="Einstellungen" style="background:rgba(255,107,53,0.07);border:1px solid rgba(255,107,53,0.25);color:rgba(255,107,53,0.7);font-size:0.85rem;width:32px;height:32px;border-radius:3px;cursor:pointer;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.color='#ff6b35';this.style.background='rgba(255,107,53,0.15)'" onmouseout="this.style.color='rgba(255,107,53,0.7)';this.style.background='rgba(255,107,53,0.07)'">☰</button>
   <div id="coords-display">CURSOR: —</div>
 </div>
 
-<!-- SEARCH -->
+<!-- SUCHE -->
 <div id="search-box">
   <input type="text" id="search-input" placeholder="Suche: Name, Ressource, Nummer..." autocomplete="off" oninput="onSearch()" onkeydown="onSearchKey(event)">
   <button id="search-clear" onclick="clearSearch()">✕</button>
   <button id="search-btn" onclick="onSearch()">SUCHE</button>
 </div>
 <div id="search-results"></div>
+
+<!-- QUADRANTEN-BAR: unter der Suchleiste -->
+<div id="quadrant-bar-wrap">
+  <div id="quadrant-bar"></div>
+</div>
 
 <div id="map-container">
   <canvas id="mapCanvas"></canvas>
@@ -1054,22 +1170,149 @@ const APP_VERSION = '2.3';
 const CFG_KEY     = 'se_raumkarte_v23';
 let cfg = { token:'', gistId:'', player:'Spieler' };
 
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  QUADRANTEN-SYSTEM — Space Engineers Planeten & Sektoren
+// ═══════════════════════════════════════════════════════════════════════════════
+const DEFAULT_QUADRANTS = [
+  // ── Erde-Quadrant (Vanilla) ──────────────────────────────────────────────
+  { id:'earth', name:'Erde', icon:'🌍', color:'#4a9eff',
+    center:{x:0,y:0,z:0}, radius:80000,
+    bodies:[
+      {name:'Erde',    type:'planet', x:0,      y:0, z:0,     r:60000, color:'#4a9eff'},
+      {name:'Mond',    type:'moon',   x:16384,   y:0, z:0,     r:9500,  color:'#cccccc'}
+    ]
+  },
+  // ── Mars-Quadrant (Vanilla) ───────────────────────────────────────────────
+  { id:'mars', name:'Mars', icon:'🔴', color:'#e8614a',
+    center:{x:1031072,y:0,z:0}, radius:80000,
+    bodies:[
+      {name:'Mars',    type:'planet', x:1031072, y:0, z:0,     r:60000, color:'#e8614a'},
+      {name:'Europa',  type:'moon',   x:1047456, y:0, z:0,     r:19000, color:'#a0c8e0'}
+    ]
+  },
+  // ── Alien Planet (Vanilla) ────────────────────────────────────────────────
+  { id:'alien', name:'Alien Planet', icon:'👽', color:'#80d060',
+    center:{x:131072,y:131072,z:0}, radius:80000,
+    bodies:[
+      {name:'Alien Planet', type:'planet', x:131072, y:131072, z:0, r:60000, color:'#80d060'},
+      {name:'Triton',       type:'moon',   x:147456, y:131072, z:0, r:9500,  color:'#60a0a0'}
+    ]
+  },
+  // ── Pertam (Vanilla DLC) ──────────────────────────────────────────────────
+  { id:'pertam', name:'Pertam', icon:'🟤', color:'#c8a060',
+    center:{x:0,y:-1031072,z:0}, radius:50000,
+    bodies:[
+      {name:'Pertam', type:'planet', x:0, y:-1031072, z:0, r:30000, color:'#c8a060'}
+    ]
+  },
+  // ── Titan (Vanilla moon standalone) ──────────────────────────────────────
+  { id:'titan', name:'Titan', icon:'🪐', color:'#f0c040',
+    center:{x:0,y:0,z:1031072}, radius:30000,
+    bodies:[
+      {name:'Titan', type:'moon', x:0, y:0, z:1031072, r:19000, color:'#f0c040'}
+    ]
+  },
+  // ── Asteroidensektor ─────────────────────────────────────────────────────
+  { id:'asteroids', name:'Asteroiden', icon:'☄️', color:'#a0a0a0',
+    center:{x:0,y:0,z:0}, radius:0, bodies:[],
+    note:'Alle Punkte die keinem Planeten zugeordnet sind, aber in Planetennähe'
+  },
+  // ── Outer Space ───────────────────────────────────────────────────────────
+  { id:'space', name:'Outer Space', icon:'🌌', color:'#6060c0',
+    center:{x:0,y:0,z:0}, radius:0, bodies:[],
+    note:'Alles ausserhalb bekannter Quadranten'
+  }
+];
+
+let quadrants = [];
+const QUAD_CFG_KEY = 'se_quadrants_v1';
+function loadQuadrants() {
+  try { const r=localStorage.getItem(QUAD_CFG_KEY); quadrants=r?JSON.parse(r):JSON.parse(JSON.stringify(DEFAULT_QUADRANTS)); }
+  catch(e){ quadrants=JSON.parse(JSON.stringify(DEFAULT_QUADRANTS)); }
+}
+function saveQuadrantsToStorage() { try{localStorage.setItem(QUAD_CFG_KEY,JSON.stringify(quadrants));}catch(e){} }
+function resetQuadrantsToDefault() { quadrants=JSON.parse(JSON.stringify(DEFAULT_QUADRANTS)); saveQuadrantsToStorage(); renderQuadrantBar(); }
+
+let activeQuadrant = null;
+
+function getPointQuadrant(p) {
+  // Zuerst Planeten-Quadranten prüfen (mit Radius)
+  let bestId = null, bestDist = Infinity;
+  for (const q of quadrants) {
+    if (!q.radius || q.radius < 100) continue;
+    const d = Math.sqrt((p.x-q.center.x)**2+(p.y-q.center.y)**2+(p.z-q.center.z)**2);
+    // Innerhalb 2× Radius gilt als Quadrant (Platz für Monde + Asteroiden in der Nähe)
+    if (d <= q.radius * 2.0 && d < bestDist) {
+      bestDist = d; bestId = q.id;
+    }
+  }
+  if (bestId) return bestId;
+  return 'space';  // Weit weg von allem = Outer Space
+}
+
+function setActiveQuadrant(id) {
+  activeQuadrant = (activeQuadrant===id)?null:id;
+  renderQuadrantBar();
+  draw();
+}
+
+function isPointInActiveQuadrant(p) {
+  if (!activeQuadrant) return true;
+  if (activeQuadrant==='asteroids') return getPointQuadrant(p)==='space';
+  return getPointQuadrant(p)===activeQuadrant;
+}
+
+function renderQuadrantBar() {
+  const bar = document.getElementById('quadrant-bar');
+  if (!bar) return;
+  bar.innerHTML = quadrants.map(q => {
+    const active  = activeQuadrant === q.id;
+    const col     = q.color || '#aaa';
+    const rgb     = hexToRgb(col);
+    const count   = points.filter(p => getPointQuadrant(p) === q.id).length;
+    const bg      = active ? 'rgba('+rgb+',0.2)'   : 'rgba(255,255,255,0.03)';
+    const bdr     = active ? col                    : 'rgba(168,216,234,0.1)';
+    const clr     = active ? col                    : 'rgba(168,216,234,0.42)';
+    const shd     = active ? '0 0 10px rgba('+rgb+',0.4),inset 0 0 8px rgba('+rgb+',0.12)' : 'none';
+    const ttl     = active ? 'Klick: Filter aufheben' : (q.note || q.name);
+    const cBadge  = count > 0
+      ? ' <span style="font-size:0.48rem;background:rgba(255,255,255,0.1);border-radius:8px;padding:0 4px;opacity:0.75">'+count+'</span>'
+      : '';
+    return '<button class="qbtn'+(active?' active':'')+'" style="background:'+bg+';border:1px solid '+bdr+';color:'+clr+';box-shadow:'+shd+';" onclick="setActiveQuadrant(\''+q.id+'\')" title="'+ttl+'">'
+      + '<span style="font-size:0.88rem;line-height:1">'+q.icon+'</span>'
+      + ' <span>'+q.name+'</span>'
+      + cBadge
+      + '</button>';
+  }).join('');
+}
+function hexToRgb(h) {
+  const r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);
+  return r+','+g+','+b;
+}
+
 // ─── SPIELER-TRACKING ────────────────────────────────────────────────────────
 let playersSeen = {};
 
 function updatePlayerSeen(savedBy, pointCount) {
-  if (!savedBy || savedBy === 'Spieler') return;
+  if (!savedBy) return;
   playersSeen[savedBy] = { lastSeen: new Date().toISOString(), points: pointCount };
-  renderPlayersPanel();
+  renderPlayersPanel();  // sofort Panel aktualisieren
 }
 
 function renderPlayersPanel() {
   const el = document.getElementById('players-list');
   if (!el) return;
 
-  // Eigenen Spieler immer als "online jetzt" eintragen
+  // Eigenen Spieler immer aktuell halten
   if (cfg.player && cfg.player !== 'Spieler') {
-    playersSeen[cfg.player] = playersSeen[cfg.player] || { lastSeen: new Date().toISOString(), points: points.length };
+    if (!playersSeen[cfg.player]) {
+      playersSeen[cfg.player] = { lastSeen: new Date().toISOString(), points: points.length };
+    } else {
+      // Nur Zeitstempel updaten wenn eigene Session
+      playersSeen[cfg.player].lastSeen = new Date().toISOString();
+      playersSeen[cfg.player].points   = points.length;
+    }
   }
 
   const names = Object.keys(playersSeen);
@@ -1077,24 +1320,31 @@ function renderPlayersPanel() {
   if (cnt) cnt.textContent = names.length;
 
   if (!names.length) {
-    el.innerHTML = '<div style="color:rgba(168,216,234,0.22);padding:5px 0">Nicht verbunden</div>';
+    el.innerHTML = '<div style="color:rgba(168,216,234,0.22);font-size:0.62rem;padding:5px 0">Kein Spieler angemeldet</div>';
     return;
   }
+
   const now = new Date();
-  // Eigener Name zuerst
-  const sorted = [...names].sort((a,b) => a===cfg.player ? -1 : b===cfg.player ? 1 : 0);
+  // Eigener Name oben, dann nach letztem Sync sortiert
+  const sorted = [...names].sort((a, b) => {
+    if (a === cfg.player) return -1;
+    if (b === cfg.player) return  1;
+    return new Date(playersSeen[b].lastSeen) - new Date(playersSeen[a].lastSeen);
+  });
+
   el.innerHTML = sorted.map(name => {
-    const d = playersSeen[name];
-    const mins = Math.round((now - new Date(d.lastSeen)) / 60000);
-    const isMe = (name === cfg.player);
+    const d      = playersSeen[name];
+    const mins   = Math.round((now - new Date(d.lastSeen)) / 60000);
+    const isMe   = (name === cfg.player);
     const online = mins < 5;
-    const col   = isMe ? '#7fff7f' : (online ? '#00c8ff' : 'rgba(168,216,234,0.4)');
-    const dot   = isMe ? '🟢' : (online ? '🔵' : '⚪');
-    const ago   = mins < 1 ? 'jetzt' : mins < 60 ? mins+'min' : Math.round(mins/60)+'h';
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid rgba(0,200,255,0.06)">'
-      + '<span style="color:'+col+'">'+dot+' '+name+(isMe?' <span style=\"opacity:0.5;font-size:0.55rem\">(ich)</span>':'')+'</span>'
-      + '<span style="color:rgba(168,216,234,0.3);font-size:0.56rem">'+ago+'</span>'
-      + '</div>';
+    const col    = isMe ? '#7fff7f' : (online ? '#00c8ff' : 'rgba(168,216,234,0.4)');
+    const dot    = isMe ? '🟢' : (online ? '🔵' : '⚪');
+    const ago    = mins < 1 ? 'jetzt' : mins < 60 ? mins + 'min' : Math.round(mins/60) + 'h';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0 3px;border-bottom:1px solid rgba(0,200,255,0.07)">'
+      + '<span style="color:' + col + ';font-size:0.64rem">' + dot + ' ' + name + (isMe ? ' <span style=\"font-size:0.52rem;opacity:0.5\">(ich)</span>' : '') + '</span>'
+      + '<span style="color:rgba(168,216,234,0.3);font-size:0.55rem">' + ago + '</span>'
+      + '</div>'
+      + '<div style="font-size:0.55rem;color:rgba(168,216,234,0.22);padding-bottom:3px">' + d.points + ' Punkte</div>';
   }).join('');
 }
 
@@ -1195,8 +1445,9 @@ async function doLoad() {
       : file.content;
     const data = JSON.parse(raw);
     setConnStatus(true);
-    // Spieler-Tracking
-    if (data.by) updatePlayerSeen(data.by, (data.points||[]).length);
+    // Spieler-Tracking: lade-User registrieren
+    if (data.by && data.by!=='Spieler') updatePlayerSeen(data.by, (data.points||[]).length);
+    renderPlayersPanel();
     if (!data.points) return null;
     return data.points.map(p=>({
       name: p.n||p.name||'?',
@@ -1547,6 +1798,72 @@ function draw() {
       const { sy } = worldToScreen(0, gy);
       ctx.beginPath(); ctx.moveTo(0,sy); ctx.lineTo(canvas.width,sy); ctx.stroke();
     }
+  }
+
+
+  // ── Quadrant-Grenzen (Einstellung: showBorders) ───────────────────────────
+  if (displaySettings.showBorders) {
+    quadrants.forEach(q => {
+      if (!q.radius || q.radius < 100) return;
+      const bc = getCoords({x:q.center.x, y:q.center.y, z:q.center.z});
+      const { sx: bx, sy: by } = worldToScreen(bc.a, bc.b);
+      const screenR = q.radius * 2.0 * transform.scale;
+      const col = q.color || '#aaa';
+      const isActive = activeQuadrant === q.id;
+      ctx.beginPath(); ctx.arc(bx, by, screenR, 0, Math.PI*2);
+      ctx.strokeStyle = col + (isActive ? 'aa' : '33');
+      ctx.lineWidth   = isActive ? 1.5 : 0.8;
+      ctx.setLineDash([8, 6]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // Quadrant-Label
+      if (screenR > 30) {
+        ctx.fillStyle = col + (isActive ? 'cc' : '66');
+        ctx.font = "10px 'Share Tech Mono', monospace";
+        ctx.textAlign = 'center';
+        ctx.fillText(q.icon + ' ' + q.name, bx, by - screenR - 8);
+      }
+    });
+  }
+
+
+  // ── Planeten & Monde zeichnen ─────────────────────────────────────────────
+  if (displaySettings.showPlanetIcons) {
+    quadrants.forEach(q => {
+      if (!q.bodies || !q.bodies.length) return;
+      q.bodies.forEach(body => {
+        const bc = getCoords({x:body.x, y:body.y, z:body.z});
+        const { sx: bx, sy: by } = worldToScreen(bc.a, bc.b);
+        const screenR = body.r * transform.scale;
+        const col = body.color || q.color || '#aaa';
+
+        // Glow-Aura
+        if (screenR > 2) {
+          const grad = ctx.createRadialGradient(bx, by, screenR*0.6, bx, by, screenR*2.5);
+          grad.addColorStop(0, 'rgba('+hexToRgb(col)+',0.12)');
+          grad.addColorStop(1, 'transparent');
+          ctx.beginPath(); ctx.arc(bx, by, screenR*2.5, 0, Math.PI*2);
+          ctx.fillStyle = grad; ctx.fill();
+        }
+
+        // Planet-Kreis
+        ctx.beginPath(); ctx.arc(bx, by, Math.max(screenR, 2), 0, Math.PI*2);
+        const alpha = body.type==='planet' ? '0.18' : '0.12';
+        ctx.fillStyle = 'rgba('+hexToRgb(col)+','+alpha+')';
+        ctx.fill();
+        ctx.strokeStyle = col + (body.type==='planet' ? '99' : '66');
+        ctx.lineWidth = body.type==='planet' ? 1.5 : 1;
+        ctx.stroke();
+
+        // Label (nur wenn gross genug)
+        if (screenR > 10 || transform.scale > 0.00005) {
+          ctx.fillStyle = col + 'cc';
+          ctx.font = `${body.type==='planet'?11:9}px 'Share Tech Mono', monospace`;
+          ctx.textAlign = 'center';
+          ctx.fillText(body.name, bx, by - screenR - 6);
+        }
+      });
+    });
   }
 
   // Lines from station
@@ -2134,6 +2451,8 @@ function saveComment() {
 // ─── INIT ────────────────────────────────────────────────────────────────────
 (async function initApp() {
   loadConfig();
+  loadQuadrants();
+  loadDisplaySettings();
   const vEl=document.getElementById('app-version');
   if(vEl) vEl.textContent='v'+APP_VERSION;
 
@@ -2166,7 +2485,8 @@ function saveComment() {
   }
 
   station=points.find(p=>p.type==='station')||null;
-  renderPlayersPanel(); // Spieler-Panel initial befüllen
+  renderPlayersPanel();
+  renderQuadrantBar();
   resize(); setTimeout(resetView,100);
 })();
 
@@ -2248,6 +2568,156 @@ function addManual() {
     document.getElementById('m-y').value='';
     document.getElementById('m-z').value='';
   }
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  SETTINGS SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+let displaySettings = { showBorders:false, showPlanetIcons:true, showLabels:true, showGrid:true, pointSize:5, labelSize:11 };
+let syncIntervalSec = 30;
+const DISP_CFG_KEY = 'se_display_v1';
+
+function loadDisplaySettings() {
+  try { const r=localStorage.getItem(DISP_CFG_KEY); if(r) displaySettings={...displaySettings,...JSON.parse(r)}; } catch(e){}
+}
+function saveDisplaySettings() {
+  try { localStorage.setItem(DISP_CFG_KEY,JSON.stringify(displaySettings)); } catch(e){}
+}
+
+function openSettings() {
+  // Sync Tab: Spielername
+  document.getElementById('set-player-name').value = cfg.player||'';
+  // Display Tab: Checkboxen + Slider
+  document.getElementById('set-show-quadrant-borders').checked = displaySettings.showBorders;
+  document.getElementById('set-show-planet-icons').checked     = displaySettings.showPlanetIcons;
+  document.getElementById('set-show-labels').checked           = displaySettings.showLabels;
+  document.getElementById('set-show-grid').checked             = displaySettings.showGrid;
+  document.getElementById('set-point-size').value              = displaySettings.pointSize;
+  document.getElementById('set-point-size-val').textContent    = displaySettings.pointSize;
+  document.getElementById('set-label-size').value              = displaySettings.labelSize;
+  document.getElementById('set-label-size-val').textContent    = displaySettings.labelSize;
+  // Sync interval
+  document.querySelectorAll('.sync-interval-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.val)===syncIntervalSec);
+  });
+  // Quadrant Tab
+  renderQuadrantEditor();
+  switchSettingsTab('quadrants');
+  document.getElementById('settings-overlay').style.display='flex';
+}
+function closeSettings() {
+  document.getElementById('settings-overlay').style.display='none';
+}
+document.getElementById('settings-overlay').addEventListener('click',e=>{
+  if(e.target===document.getElementById('settings-overlay')) closeSettings();
+});
+
+function switchSettingsTab(tab) {
+  ['quadrants','display','sync'].forEach(t=>{
+    document.getElementById('stab-'+t).classList.toggle('active',t===tab);
+    document.getElementById('stab-'+t+'-content').style.display=t===tab?'block':'none';
+  });
+}
+
+function applyDisplaySettings() {
+  displaySettings.showBorders     = document.getElementById('set-show-quadrant-borders').checked;
+  displaySettings.showPlanetIcons = document.getElementById('set-show-planet-icons').checked;
+  displaySettings.showLabels      = document.getElementById('set-show-labels').checked;
+  displaySettings.showGrid        = document.getElementById('set-show-grid').checked;
+  displaySettings.pointSize       = parseInt(document.getElementById('set-point-size').value)||5;
+  displaySettings.labelSize       = parseInt(document.getElementById('set-label-size').value)||11;
+  document.getElementById('set-point-size-val').textContent = displaySettings.pointSize;
+  document.getElementById('set-label-size-val').textContent = displaySettings.labelSize;
+  saveDisplaySettings();
+  draw();
+}
+
+function applyPlayerName() {
+  const n = document.getElementById('set-player-name').value.trim();
+  if (!n) return;
+  cfg.player = n; saveConfig();
+  const btn=document.getElementById('btn-player'); if(btn) btn.textContent='👤 '+n.toUpperCase();
+  renderPlayersPanel();
+  showToast('✓ Spielername: '+n);
+}
+
+function setSyncInterval(sec) {
+  syncIntervalSec = sec;
+  document.querySelectorAll('.sync-interval-btn').forEach(b=>{
+    b.classList.toggle('active', parseInt(b.dataset.val)===sec);
+  });
+  stopAutoSync();
+  if (sec>0 && isConfigured()) startAutoSyncCustom(sec);
+  showToast('Sync: '+(sec>0?sec+'s':'Manuell'));
+}
+
+function startAutoSyncCustom(sec) {
+  stopAutoSync();
+  syncTimer = setInterval(async()=>{
+    if(!isConfigured()||saveStatus==='saving') return;
+    const fresh=await doLoad(); if(!fresh||!fresh.length) return;
+    const h=makeHash(fresh);
+    if(h!==syncHash){ syncHash=h; points.length=0; points.push(...fresh);
+      station=points.find(p=>p.type==='station')||null;
+      draw(); if(currentMode==='3d'&&is3dInit) rebuild3DPoints();
+      setSaveStatus('saved','↺ AKTUALISIERT');
+    }
+  }, sec*1000);
+}
+
+// ── QUADRANT EDITOR ───────────────────────────────────────────────────────────
+function renderQuadrantEditor() {
+  const el = document.getElementById('quadrant-list-editor');
+  if (!el) return;
+  el.innerHTML = quadrants.map((q,i) => `
+    <div class="quad-editor-row" id="qrow-${i}">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:7px">
+        <input type="text" value="${q.icon||'🔵'}" style="width:36px;text-align:center" onchange="updateQuadrant(${i},'icon',this.value)" title="Icon">
+        <input type="text" value="${q.name}" style="flex:1" onchange="updateQuadrant(${i},'name',this.value)" placeholder="Name">
+        <input type="color" value="${q.color||'#00c8ff'}" style="width:32px;height:26px;padding:0;border:none;cursor:pointer;background:none" onchange="updateQuadrant(${i},'color',this.value)" title="Farbe">
+        <button onclick="removeQuadrant(${i})" style="background:rgba(255,68,68,0.07);border:1px solid rgba(255,68,68,0.2);color:rgba(255,100,100,0.6);font-size:0.75rem;padding:2px 7px;border-radius:3px;cursor:pointer" ${quadrants.length<=1?'disabled':''}>✕</button>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:0.58rem;color:rgba(168,216,234,0.4);min-width:50px">ZENTRUM:</span>
+        <input type="number" value="${q.center.x}" onchange="updateQuadrantCenter(${i},'x',this.value)" title="X" placeholder="X">
+        <input type="number" value="${q.center.y}" onchange="updateQuadrantCenter(${i},'y',this.value)" title="Y" placeholder="Y">
+        <input type="number" value="${q.center.z}" onchange="updateQuadrantCenter(${i},'z',this.value)" title="Z" placeholder="Z">
+        <span style="font-size:0.58rem;color:rgba(168,216,234,0.4)">R:</span>
+        <input type="number" value="${q.radius}" onchange="updateQuadrant(${i},'radius',parseInt(this.value)||0)" style="width:80px" title="Radius (0=kein Bereich)">
+      </div>
+    </div>`
+  ).join('');
+}
+
+function updateQuadrant(i, key, val) {
+  quadrants[i][key] = key==='radius'?parseInt(val)||0:val;
+  saveQuadrantsToStorage(); renderQuadrantBar();
+}
+function updateQuadrantCenter(i, axis, val) {
+  quadrants[i].center[axis] = parseFloat(val)||0;
+  saveQuadrantsToStorage(); renderQuadrantBar();
+}
+function removeQuadrant(i) {
+  if (quadrants.length<=1) return;
+  quadrants.splice(i,1); saveQuadrantsToStorage();
+  renderQuadrantEditor(); renderQuadrantBar();
+}
+function addQuadrant() {
+  quadrants.push({ id:'custom_'+Date.now(), name:'Neuer Sektor', icon:'⭐', color:'#a0a0ff',
+    center:{x:0,y:0,z:0}, radius:50000, bodies:[] });
+  saveQuadrantsToStorage(); renderQuadrantEditor(); renderQuadrantBar();
+}
+
+// Quadrant-Filter auf draw() anwenden
+// (patche isPointFiltered um activeQuadrant zu berücksichtigen)
+const _origIsFiltered = typeof isPointFiltered==='function' ? isPointFiltered : null;
+function isPointFiltered(p) {
+  if (!isPointInActiveQuadrant(p)) return true;
+  const t = p.type==='erschoepft' ? (p.originalType||'erschoepft') : p.type;
+  if (!filters['erschoepft'] && p.type==='erschoepft') return true;
+  if (p.type!=='erschoepft' && !filters[t]) return true;
+  return false;
 }
 
 // ─── DRAGGABLE PANELS ────────────────────────────────────────────────────────
@@ -2944,6 +3414,104 @@ document.getElementById('wizard-overlay').addEventListener('click',e=>{
   </div>
   <div id="players-list"></div>
   <div id="players-footer">↺ Sync 30s</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════ SETTINGS PANEL -->
+<div id="settings-overlay" style="display:none;position:fixed;inset:0;z-index:3500;background:rgba(0,5,15,0.9);align-items:center;justify-content:center;backdrop-filter:blur(6px)">
+<div id="settings-box" style="background:rgba(3,12,25,0.99);border:1px solid rgba(255,107,53,0.3);border-radius:6px;width:540px;max-height:88vh;overflow-y:auto;box-shadow:0 0 80px rgba(255,107,53,0.08);font-family:'Share Tech Mono',monospace">
+
+  <!-- Header -->
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(255,107,53,0.15);background:rgba(255,107,53,0.04)">
+    <div style="font-family:'Orbitron',sans-serif;font-size:0.9rem;letter-spacing:3px;color:#ff6b35">☰ EINSTELLUNGEN</div>
+    <button onclick="closeSettings()" style="background:none;border:none;color:rgba(168,216,234,0.4);font-size:1.1rem;cursor:pointer">✕</button>
+  </div>
+
+  <!-- Tabs -->
+  <div style="display:flex;border-bottom:1px solid rgba(255,107,53,0.1)">
+    <button id="stab-quadrants" onclick="switchSettingsTab('quadrants')" class="stab active">🗺 QUADRANTEN</button>
+    <button id="stab-display"   onclick="switchSettingsTab('display')"   class="stab">🎨 ANZEIGE</button>
+    <button id="stab-sync"      onclick="switchSettingsTab('sync')"      class="stab">🔄 SYNC</button>
+  </div>
+
+  <!-- TAB: Quadranten -->
+  <div id="stab-quadrants-content" style="padding:18px 20px">
+    <div style="font-size:0.62rem;color:rgba(168,216,234,0.4);margin-bottom:12px;line-height:1.7">
+      Definiere Sektoren. Punkte innerhalb des Radius (×2) werden dem Quadranten zugeordnet.<br>
+      <span style="color:#ff6b35">Tipp:</span> Sektorgrenzen auf der Karte ein/ausblenden im Anzeige-Tab.
+    </div>
+
+    <!-- Planet-Schnellübersicht -->
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,107,53,0.1)">
+      <div style="font-size:0.58rem;color:rgba(168,216,234,0.3);letter-spacing:1px;width:100%;margin-bottom:4px">// VANILLA SE PLANETEN (offiziell)</div>
+      <div style="background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">🌍 <b style="color:#4a9eff">Erde</b><br><span style="color:rgba(168,216,234,0.4)">0,0,0 · r60000</span></div>
+      <div style="background:rgba(204,204,204,0.06);border:1px solid rgba(204,204,204,0.2);border-radius:3px;padding:6px 10px;font-size:0.6rem">🌙 <b style="color:#ccc">Mond</b><br><span style="color:rgba(168,216,234,0.4)">16384,0,0 · r9500</span></div>
+      <div style="background:rgba(232,97,74,0.08);border:1px solid rgba(232,97,74,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">🔴 <b style="color:#e8614a">Mars</b><br><span style="color:rgba(168,216,234,0.4)">1031072,0,0 · r60000</span></div>
+      <div style="background:rgba(160,224,136,0.08);border:1px solid rgba(160,224,136,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">👽 <b style="color:#a0e088">Alien</b><br><span style="color:rgba(168,216,234,0.4)">131072,131072,0 · r60000</span></div>
+      <div style="background:rgba(200,160,96,0.08);border:1px solid rgba(200,160,96,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">🟤 <b style="color:#c8a060">Pertam</b><br><span style="color:rgba(168,216,234,0.4)">0,-1031072,0 · r30000</span></div>
+      <div style="background:rgba(240,192,64,0.08);border:1px solid rgba(240,192,64,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">🪐 <b style="color:#f0c040">Titan</b><br><span style="color:rgba(168,216,234,0.4)">0,0,1031072 · r19000</span></div>
+    </div>
+
+    <div id="quadrant-list-editor"></div>
+
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button onclick="addQuadrant()" style="flex:1;background:rgba(255,107,53,0.1);border:1px solid rgba(255,107,53,0.35);color:#ff6b35;font-family:'Share Tech Mono',monospace;font-size:0.62rem;letter-spacing:1px;padding:8px;border-radius:3px;cursor:pointer">+ QUADRANT HINZUFÜGEN</button>
+      <button onclick="resetQuadrantsToDefault()" style="background:rgba(168,216,234,0.05);border:1px solid rgba(168,216,234,0.15);color:rgba(168,216,234,0.5);font-family:'Share Tech Mono',monospace;font-size:0.62rem;padding:8px 12px;border-radius:3px;cursor:pointer" title="Standard-Quadranten wiederherstellen">↺ RESET</button>
+    </div>
+    <div id="quad-editor-feedback" style="font-size:0.62rem;color:#7fff7f;margin-top:8px;min-height:16px"></div>
+  </div>
+
+  <!-- TAB: Anzeige -->
+  <div id="stab-display-content" style="padding:18px 20px;display:none">
+    <div style="font-size:0.65rem;color:rgba(168,216,234,0.5);letter-spacing:1px;margin-bottom:12px">KARTE</div>
+    <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;font-size:0.68rem">
+      <input type="checkbox" id="set-show-quadrant-borders" onchange="applyDisplaySettings()" style="accent-color:#ff6b35">
+      Quadrant-Grenzen auf Karte einzeichnen
+    </label>
+    <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;font-size:0.68rem">
+      <input type="checkbox" id="set-show-planet-icons" checked onchange="applyDisplaySettings()" style="accent-color:#ff6b35">
+      Planeten/Monde auf Karte anzeigen
+    </label>
+    <label style="display:flex;align-items:center;gap:10px;margin-bottom:10px;cursor:pointer;font-size:0.68rem">
+      <input type="checkbox" id="set-show-labels" checked onchange="applyDisplaySettings()" style="accent-color:#ff6b35">
+      Punkt-Beschriftungen anzeigen
+    </label>
+    <label style="display:flex;align-items:center;gap:10px;margin-bottom:20px;cursor:pointer;font-size:0.68rem">
+      <input type="checkbox" id="set-show-grid" checked onchange="applyDisplaySettings()" style="accent-color:#ff6b35">
+      Koordinaten-Raster anzeigen
+    </label>
+    <div style="font-size:0.65rem;color:rgba(168,216,234,0.5);letter-spacing:1px;margin-bottom:8px">PUNKT-GRÖSSE</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <input type="range" id="set-point-size" min="2" max="12" value="5" style="flex:1;accent-color:#ff6b35" oninput="applyDisplaySettings()">
+      <span id="set-point-size-val" style="font-size:0.68rem;color:#ff6b35;min-width:20px">5</span>
+    </div>
+    <div style="font-size:0.65rem;color:rgba(168,216,234,0.5);letter-spacing:1px;margin-bottom:8px">LABEL-GRÖSSE</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <input type="range" id="set-label-size" min="8" max="18" value="11" style="flex:1;accent-color:#ff6b35" oninput="applyDisplaySettings()">
+      <span id="set-label-size-val" style="font-size:0.68rem;color:#ff6b35;min-width:20px">11</span>
+    </div>
+  </div>
+
+  <!-- TAB: Sync -->
+  <div id="stab-sync-content" style="padding:18px 20px;display:none">
+    <div style="font-size:0.65rem;color:rgba(168,216,234,0.5);letter-spacing:1px;margin-bottom:12px">AUTO-SYNC INTERVALL</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+      <button class="sync-interval-btn active" onclick="setSyncInterval(30)" data-val="30">30s</button>
+      <button class="sync-interval-btn" onclick="setSyncInterval(60)" data-val="60">1min</button>
+      <button class="sync-interval-btn" onclick="setSyncInterval(120)" data-val="120">2min</button>
+      <button class="sync-interval-btn" onclick="setSyncInterval(300)" data-val="300">5min</button>
+      <button class="sync-interval-btn" onclick="setSyncInterval(0)" data-val="0">Manuell</button>
+    </div>
+    <div style="font-size:0.65rem;color:rgba(168,216,234,0.5);letter-spacing:1px;margin-bottom:8px">SPIELER-NAME</div>
+    <div style="display:flex;gap:8px;margin-bottom:14px">
+      <input id="set-player-name" type="text" value="" placeholder="Dein Name" style="flex:1;background:rgba(0,200,255,0.05);border:1px solid rgba(0,200,255,0.2);color:#00c8ff;font-family:'Share Tech Mono',monospace;font-size:0.72rem;padding:6px 10px;border-radius:3px;outline:none">
+      <button onclick="applyPlayerName()" style="background:rgba(0,200,255,0.1);border:1px solid rgba(0,200,255,0.3);color:#00c8ff;font-family:'Share Tech Mono',monospace;font-size:0.62rem;padding:6px 12px;border-radius:3px;cursor:pointer">✓ OK</button>
+    </div>
+    <div style="font-size:0.65rem;color:rgba(168,216,234,0.5);letter-spacing:1px;margin-bottom:8px">VERBINDUNG</div>
+    <button onclick="openSetupWizard();closeSettings();" style="width:100%;background:rgba(0,200,255,0.07);border:1px solid rgba(0,200,255,0.25);color:#00c8ff;font-family:'Share Tech Mono',monospace;font-size:0.65rem;letter-spacing:1px;padding:8px;border-radius:3px;cursor:pointer">⚙ GITHUB GIST KONFIGURIEREN</button>
+  </div>
+
+</div>
 </div>
 
 </body>
