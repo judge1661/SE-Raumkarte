@@ -117,22 +117,25 @@
 
   /* Draggable panels */
   .drag-handle {
-    cursor: move !important;
+    cursor: grab !important;
     user-select: none;
   }
+  .drag-handle:active { cursor: grabbing !important; }
   .drag-handle::before {
     content: '⠿';
-    margin-right: 6px;
-    opacity: 0.4;
-    font-size: 0.9rem;
+    margin-right: 5px;
+    opacity: 0.35;
+    font-size: 0.85rem;
     vertical-align: middle;
+    transition: opacity 0.15s;
   }
-  .drag-handle:hover::before { opacity: 0.8; }
+  .drag-handle:hover::before { opacity: 0.75; }
   .panel-dragging {
     box-shadow: 0 0 40px rgba(0,200,255,0.25), 0 8px 32px rgba(0,0,0,0.8) !important;
     border-color: rgba(0,200,255,0.4) !important;
     z-index: 999 !important;
     transition: none !important;
+    cursor: grabbing !important;
   }
 
   /* Info Panel */
@@ -142,7 +145,7 @@
     background: var(--panel);
     border: 1px solid rgba(0,200,255,0.2);
     border-radius: 4px;
-    z-index: 200;
+    z-index: 300;
     overflow: hidden;
     box-shadow: 0 0 30px rgba(0,0,0,0.7), inset 0 0 30px rgba(0,200,255,0.02);
     transition: transform 0.2s ease, opacity 0.2s ease;
@@ -180,7 +183,7 @@
   /* Legend */
   #legend {
     position: fixed; left: 20px; bottom: 20px;
-    z-index: 200;
+    z-index: 300;
     background: var(--panel);
     border: 1px solid rgba(0,200,255,0.15);
     border-radius: 4px;
@@ -206,7 +209,7 @@
   /* Controls */
   #controls {
     position: fixed; left: 20px; top: 70px;
-    z-index: 200;
+    z-index: 300;
     display: flex; flex-direction: column; gap: 6px;
   }
   /* Controls haben z-index 200, players z-index 400 — panel liegt drüber, darf aber nicht überlappen */
@@ -229,7 +232,7 @@
   /* View toggle */
   #view-toggle {
     position: fixed; left: 20px; top: 200px;
-    z-index: 200;
+    z-index: 300;
   }
   .view-btn {
     display: block;
@@ -254,8 +257,8 @@
 
   /* Filter */
   #filter-panel {
-    position: fixed; left: 20px; top: 260px;
-    z-index: 200;
+    position: fixed; left: 20px; top: 240px;
+    z-index: 300;
     background: var(--panel);
     border: 1px solid rgba(0,200,255,0.15);
     border-radius: 4px;
@@ -370,7 +373,7 @@
     background: var(--panel);
     border: 1px solid rgba(0,200,255,0.2);
     border-radius: 4px;
-    z-index: 200;
+    z-index: 300;
     overflow: hidden;
     box-shadow: 0 0 30px rgba(0,0,0,0.7);
   }
@@ -780,7 +783,7 @@
   /* ── SPIELER-PANEL: frei schwebend, standardmässig unter Suchleiste ────── */
   #players-panel {
     position: fixed;
-    top: 56px; left: calc(50% - 110px); /* direkt unter Suchfeld, zentriert */
+    top: 56px; left: calc(50% - 110px);
     z-index: 250;                         /* unter Info-Panel, über Karte */
     width: 220px;
     min-width: 160px;
@@ -949,6 +952,33 @@
   .quad-editor-row input[type=text]   { width: 100%; }
   .quad-editor-row input[type=range]  { cursor: pointer; }
 
+
+  /* ── Panel-Header als Drag-Handle ────────────────────────────────────────── */
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    background: rgba(0,200,255,0.07);
+    border-bottom: 1px solid rgba(0,200,255,0.12);
+    cursor: grab;
+    user-select: none;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.58rem;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+  .panel-header:hover { background: rgba(0,200,255,0.11); }
+  .panel-header:active { cursor: grabbing; }
+  .panel-header .grip {
+    opacity: 0.4;
+    font-size: 1rem;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .panel-header:hover .grip { opacity: 0.7; }
+  .panel-header .ph-title { flex: 1; }
+
 </style>
 </head>
 <body>
@@ -1009,7 +1039,7 @@
 </div>
 
 <div id="filter-panel">
-  <h4 class="drag-handle">FILTER</h4>
+  <div id="filter-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">FILTER</span></div>
   <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('eis')"> <span style="color:#75c9f1">● Eis / Ice</span></label>
   <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('metall')"> <span style="color:#f1bf75">● Metalle</span></label>
   <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('edel')"> <span style="color:#f1d875">● Edelmetalle</span></label>
@@ -1021,7 +1051,7 @@
 </div>
 
 <div id="info-panel" class="hidden">
-  <div id="info-panel-header" class="drag-handle">// OBJEKT DETAILS</div>
+  <div id="info-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// OBJEKT DETAILS</span></div>
   <div id="info-content">
     <!-- Editierbarer Name -->
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
@@ -1096,7 +1126,7 @@
 <div id="delete-toast"></div>
 
 <div id="legend">
-  <h3 class="drag-handle">LEGENDE</h3>
+  <div id="legend-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">LEGENDE</span></div>
   <div class="legend-item"><div class="legend-dot" style="background:#7fff7f;box-shadow:0 0 6px #7fff7f"></div>Raumstation (Origin)</div>
   <div class="legend-item"><div class="legend-dot" style="background:#75c9f1"></div>Eis / Ice</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f1bf75"></div>Metalle (Fe, Ni, Co...)</div>
@@ -1118,10 +1148,7 @@
 
 <!-- ADD GPS PANEL -->
 <div id="add-panel">
-  <div id="add-panel-header">
-    <span class="drag-handle" style="flex:1">// GPS KOORDINATE HINZUFÜGEN</span>
-    <span id="add-panel-toggle" onclick="toggleAddPanel()" style="cursor:pointer;padding-left:10px">▲</span>
-  </div>
+  <div id="add-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// GPS KOORDINATE HINZUFÜGEN</span><span id="add-panel-toggle" onclick="toggleAddPanel();event.stopPropagation()" style="cursor:pointer;font-size:0.8rem;margin-left:4px">▲</span></div>
   <div id="add-panel-body">
     <div class="tab-row">
       <button class="tab-btn active" onclick="switchTab('raw')">RAW STRING</button>
@@ -1984,6 +2011,9 @@ canvas.addEventListener('wheel', e => {
 }, { passive: false });
 
 canvas.addEventListener('mousedown', e => {
+  // Kein Canvas-Drag wenn ein Panel-Element getroffen wurde
+  const hit = document.elementFromPoint(e.clientX, e.clientY);
+  if (hit && hit.closest('#info-panel, #legend, #filter-panel, #add-panel, #players-panel, #controls, #view-toggle, #header, #search-box, #quadrant-bar-wrap')) return;
   dragging = true;
   lastMouse = { x: e.clientX, y: e.clientY };
   document.getElementById('map-container').classList.add('grabbing');
@@ -2842,76 +2872,82 @@ function isPointFiltered(p) {
   return false;
 }
 
-// ─── DRAGGABLE PANELS ────────────────────────────────────────────────────────
-(function() {
-  // panels: { el, handle }
-  const panelConfigs = [
-    { panelId: 'info-panel',   handleSel: '#info-panel-header' },
-    { panelId: 'legend',       handleSel: '#legend h3' },
-    { panelId: 'players-panel', handleSel: '#players-panel-header' },
-    { panelId: 'filter-panel', handleSel: '#filter-panel h4' },
-    { panelId: 'add-panel',    handleSel: '#add-panel-header .drag-handle' },
-  ];
+// ─── DRAGGABLE PANELS ─────────────────────────────────────────────────────────
+// Robuste Implementierung: liest immer getBoundingClientRect() für genaue Position
+// ─── PANEL DRAG SYSTEM ───────────────────────────────────────────────────────
+// Globaler Drag-State — verhindert Konflikte zwischen Panel- und Canvas-Drag
+let _panelDragging = false;
 
-  panelConfigs.forEach(({ panelId, handleSel }) => {
-    const panel = document.getElementById(panelId);
-    if (!panel) return;
+function makeDraggable(panelEl, handleEl) {
+  if (!panelEl || !handleEl) return;
 
-    // Wait for DOM ready (handle may not exist yet for some)
-    function initDrag() {
-      const handle = panel.querySelector(handleSel.replace('#'+panelId+' ','').replace('#'+panelId,'')) ||
-                     document.querySelector(handleSel);
-      if (!handle) return;
+  let ox = 0, oy = 0, mx = 0, my = 0;
 
-      let dragging = false, ox = 0, oy = 0, startX = 0, startY = 0;
+  handleEl.addEventListener('mousedown', function(e) {
+    // Interaktive Elemente innerhalb des Handles nicht blockieren
+    if (e.target.tagName === 'BUTTON'   ||
+        e.target.tagName === 'INPUT'    ||
+        e.target.tagName === 'SELECT'   ||
+        e.target.tagName === 'TEXTAREA' ||
+        e.target.tagName === 'A'        ||
+        e.target.id      === 'add-panel-toggle') return;
 
-      handle.addEventListener('mousedown', e => {
-        // Don't start drag on buttons/inputs
-        if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.id === 'add-panel-toggle') return;
-        e.preventDefault();
+    e.preventDefault();
+    e.stopPropagation();
 
-        // Switch from fixed CSS position to absolute with explicit px values
-        if (panel.style.left === '') {
-          const rect = panel.getBoundingClientRect();
-          panel.style.left = rect.left + 'px';
-          panel.style.top  = rect.top  + 'px';
-          panel.style.right  = 'auto';
-          panel.style.bottom = 'auto';
-        }
+    // Immer frisch aus getBoundingClientRect — egal ob right/bottom oder left/top gesetzt
+    const r = panelEl.getBoundingClientRect();
+    panelEl.style.left   = r.left + 'px';
+    panelEl.style.top    = r.top  + 'px';
+    panelEl.style.right  = 'auto';
+    panelEl.style.bottom = 'auto';
+    panelEl.style.zIndex = '1000';
 
-        dragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        ox = parseInt(panel.style.left) || 0;
-        oy = parseInt(panel.style.top)  || 0;
-        panel.classList.add('panel-dragging');
-        panel.style.zIndex = 999;
-      });
+    ox = r.left;
+    oy = r.top;
+    mx = e.clientX;
+    my = e.clientY;
 
-      window.addEventListener('mousemove', e => {
-        if (!dragging) return;
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-        let nx = ox + dx;
-        let ny = oy + dy;
-        // Clamp to viewport
-        nx = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  nx));
-        ny = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, ny));
-        panel.style.left = nx + 'px';
-        panel.style.top  = ny + 'px';
-      });
+    _panelDragging = true;
+    panelEl.classList.add('panel-dragging');
 
-      window.addEventListener('mouseup', () => {
-        if (!dragging) return;
-        dragging = false;
-        panel.classList.remove('panel-dragging');
-      });
+    function onMove(ev) {
+      if (!_panelDragging) return;
+      let nx = ox + (ev.clientX - mx);
+      let ny = oy + (ev.clientY - my);
+      nx = Math.max(0, Math.min(window.innerWidth  - panelEl.offsetWidth,  nx));
+      ny = Math.max(0, Math.min(window.innerHeight - panelEl.offsetHeight, ny));
+      panelEl.style.left = nx + 'px';
+      panelEl.style.top  = ny + 'px';
     }
 
-    // Init after short delay to ensure DOM is ready
-    setTimeout(initDrag, 50);
+    function onUp() {
+      _panelDragging = false;
+      panelEl.classList.remove('panel-dragging');
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+    }
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
   });
-})();
+}
+
+// Panels nach DOM-Load registrieren
+document.addEventListener('DOMContentLoaded', function() {
+  const panels = [
+    { panel: 'info-panel',    handle: 'info-panel-header' },
+    { panel: 'legend',        handle: 'legend-header'     },
+    { panel: 'players-panel', handle: 'players-panel-header' },
+    { panel: 'filter-panel',  handle: 'filter-panel-header' },
+    { panel: 'add-panel',     handle: 'add-panel-header'  },
+  ];
+  panels.forEach(function(cfg) {
+    const p = document.getElementById(cfg.panel);
+    const h = document.getElementById(cfg.handle);
+    if (p && h) makeDraggable(p, h);
+  });
+});
 
 // ─── MODE SWITCHING ──────────────────────────────────────────────────────────
 
@@ -3528,10 +3564,7 @@ document.getElementById('wizard-overlay').addEventListener('click',e=>{
 
 <!-- SPIELER-PANEL: permanent sichtbar, verschiebbar -->
 <div id="players-panel">
-  <div id="players-panel-header" class="drag-handle">
-    <span>// SPIELER</span>
-    <span id="players-online-count">0</span>
-  </div>
+  <div id="players-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// SPIELER</span><span id="players-online-count" style="font-size:0.6rem;background:rgba(0,200,255,0.12);color:#00c8ff;border-radius:10px;padding:1px 7px">0</span></div>
   <div id="players-list"></div>
   <div id="players-footer">↺ Sync 30s</div>
 </div>
