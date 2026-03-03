@@ -1020,21 +1020,7 @@
     flex: 1;
     pointer-events: none; /* Text soll nicht klickbar sein */
   }
-  .panel-header.pinned { cursor: default; }
-  .panel-header.pinned .grip { opacity: 0.15; }
-  .pin-btn {
-    background: none;
-    border: none;
-    color: rgba(168,216,234,0.25);
-    font-size: 0.75rem;
-    cursor: pointer;
-    padding: 0 2px;
-    line-height: 1;
-    pointer-events: auto;
-    transition: color 0.15s;
-  }
-  .pin-btn:hover { color: rgba(168,216,234,0.7); }
-  .pin-btn.active { color: #ff6b35; }
+
 
 </style>
 </head>
@@ -1055,6 +1041,7 @@
   <div id="save-status" style="font-size:0.62rem;letter-spacing:1px;transition:color 0.3s;min-width:180px;text-align:center;"></div>
   <div id="conn-status" style="font-size:0.58rem;letter-spacing:1px;color:#ff4444;white-space:nowrap;padding:0 6px">🔴 GETRENNT</div>
   <span id="app-version" style="font-size:0.52rem;color:rgba(168,216,234,0.22);letter-spacing:2px;padding-right:4px"></span>
+  <button onclick="openAnalyse()" title="Sektor-Analyse" style="background:rgba(127,255,127,0.07);border:1px solid rgba(127,255,127,0.2);color:rgba(127,255,127,0.6);font-size:0.85rem;width:32px;height:32px;border-radius:3px;cursor:pointer;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.color='#7fff7f';this.style.background='rgba(127,255,127,0.15)'" onmouseout="this.style.color='rgba(127,255,127,0.6)';this.style.background='rgba(127,255,127,0.07)'">🔍</button>
   <button onclick="openSetupWizard()" title="GitHub Verbindung" style="background:rgba(0,200,255,0.07);border:1px solid rgba(0,200,255,0.2);color:rgba(0,200,255,0.6);font-size:1rem;width:32px;height:32px;border-radius:3px;cursor:pointer;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.color='#00c8ff';this.style.background='rgba(0,200,255,0.15)'" onmouseout="this.style.color='rgba(0,200,255,0.6)';this.style.background='rgba(0,200,255,0.07)'">⚙</button>
   <button onclick="openSettings()" title="Einstellungen" style="background:rgba(255,107,53,0.07);border:1px solid rgba(255,107,53,0.25);color:rgba(255,107,53,0.7);font-size:0.85rem;width:32px;height:32px;border-radius:3px;cursor:pointer;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.color='#ff6b35';this.style.background='rgba(255,107,53,0.15)'" onmouseout="this.style.color='rgba(255,107,53,0.7)';this.style.background='rgba(255,107,53,0.07)'">☰</button>
   <div id="coords-display" title="Koordinaten relativ zur Erde (0, 0, 0)">CURSOR: —</div>
@@ -1065,7 +1052,7 @@
   <div id="search-box-header" class="panel-header" style="width:100%;border-radius:3px 3px 0 0;border-bottom:1px solid rgba(0,200,255,0.15)">
     <span class="grip">⠿</span>
     <span class="ph-title">SUCHE</span>
-  <button class="pin-btn" title="Anpinnen / Loslösen" onclick="togglePin('search-box',this)">📌</button></div>
+  </div>
   <div style="display:flex;width:100%">
     <input type="text" id="search-input" placeholder="Name, Ressource, Koordinate..." autocomplete="off" oninput="onSearch()" onkeydown="onSearchKey(event)" style="flex:1;border-radius:0;border-top:none">
     <button id="search-clear" onclick="clearSearch()" style="border-top:none">✕</button>
@@ -1102,7 +1089,7 @@
 </div>
 
 <div id="filter-panel">
-  <div id="filter-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">FILTER</span><button class="pin-btn" title="Anpinnen / Loslösen" onclick="togglePin('filter-panel',this)">📌</button></div>
+  <div id="filter-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">FILTER</span></div>
   <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('eis')"> <span style="color:#75c9f1">● Eis / Ice</span></label>
   <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('metall')"> <span style="color:#f1bf75">● Metalle</span></label>
   <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('edel')"> <span style="color:#f1d875">● Edelmetalle</span></label>
@@ -1114,7 +1101,7 @@
 </div>
 
 <div id="info-panel" class="hidden">
-  <div id="info-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// OBJEKT DETAILS</span><button class="pin-btn" title="Anpinnen / Loslösen" onclick="togglePin('info-panel',this)">📌</button></div>
+  <div id="info-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// OBJEKT DETAILS</span></div>
   <div id="info-content">
     <!-- Editierbarer Name -->
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
@@ -1189,7 +1176,7 @@
 <div id="delete-toast"></div>
 
 <div id="legend">
-  <div id="legend-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">LEGENDE</span><button class="pin-btn" title="Anpinnen / Loslösen" onclick="togglePin('legend',this)">📌</button></div>
+  <div id="legend-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">LEGENDE</span></div>
   <div class="legend-item"><div class="legend-dot" style="background:#7fff7f;box-shadow:0 0 6px #7fff7f"></div>Raumstation (Origin)</div>
   <div class="legend-item"><div class="legend-dot" style="background:#75c9f1"></div>Eis / Ice</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f1bf75"></div>Metalle (Fe, Ni, Co...)</div>
@@ -1211,7 +1198,7 @@
 
 <!-- ADD GPS PANEL -->
 <div id="add-panel">
-  <div id="add-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// GPS KOORDINATE HINZUFÜGEN</span><span id="add-panel-toggle" onclick="toggleAddPanel();event.stopPropagation()" style="cursor:pointer;font-size:0.8rem;margin-left:4px">▲</span><button class="pin-btn" title="Anpinnen / Loslösen" onclick="togglePin('add-panel',this)">📌</button></div>
+  <div id="add-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// GPS KOORDINATE HINZUFÜGEN</span><span id="add-panel-toggle" onclick="toggleAddPanel();event.stopPropagation()" style="cursor:pointer;font-size:0.8rem;margin-left:4px">▲</span></div>
   <div id="add-panel-body">
     <div class="tab-row">
       <button class="tab-btn active" onclick="switchTab('raw')">RAW STRING</button>
@@ -1274,48 +1261,47 @@ let cfg = { token:'', gistId:'', player:'Spieler' };
 //  QUADRANTEN-SYSTEM — Space Engineers Planeten & Sektoren
 // ═══════════════════════════════════════════════════════════════════════════════
 const DEFAULT_QUADRANTS = [
-  // ── Erde-Quadrant (Vanilla) ──────────────────────────────────────────────
-  { id:'earth', name:'Erde', icon:'🌍', color:'#4a9eff',
-    center:{x:0,y:0,z:0}, radius:80000,
+  // ── Earth ────────────────────────────────────────────────────────────────
+  { id:'earth', name:'Earth', icon:'🌍', color:'#4a9eff',
+    center:{x:0, y:0, z:0}, radius:3000,
     bodies:[
-      {name:'Erde',    type:'planet', x:0,      y:0, z:0,     r:60000, color:'#4a9eff'},
-      {name:'Mond',    type:'moon',   x:16384,   y:0, z:0,     r:9500,  color:'#cccccc'}
+      {name:'Earth', type:'planet', x:0, y:0, z:0, r:3000, color:'#4a9eff'}
     ]
   },
-  // ── Mars-Quadrant (Vanilla) ───────────────────────────────────────────────
+  // ── Asteroid ─────────────────────────────────────────────────────────────
+  { id:'asteroid', name:'Asteroid', icon:'☄️', color:'#a0a0a0',
+    center:{x:1512000, y:-2102000, z:3049000}, radius:100,
+    bodies:[
+      {name:'Asteroid', type:'moon', x:1512000, y:-2102000, z:3049000, r:100, color:'#a0a0a0'}
+    ]
+  },
+  // ── Event ─────────────────────────────────────────────────────────────────
+  { id:'event', name:'Event', icon:'⚡', color:'#ff6b35',
+    center:{x:23094000, y:23094000, z:23094000}, radius:200,
+    bodies:[
+      {name:'Event', type:'moon', x:23094000, y:23094000, z:23094000, r:200, color:'#ff6b35'}
+    ]
+  },
+  // ── Galados ───────────────────────────────────────────────────────────────
+  { id:'galados', name:'Galados', icon:'🪐', color:'#c060ff',
+    center:{x:24003000, y:-8912000, z:14386000}, radius:3000,
+    bodies:[
+      {name:'Galados', type:'planet', x:24003000, y:-8912000, z:14386000, r:3000, color:'#c060ff'}
+    ]
+  },
+  // ── Mars ──────────────────────────────────────────────────────────────────
   { id:'mars', name:'Mars', icon:'🔴', color:'#e8614a',
-    center:{x:1031072,y:0,z:0}, radius:80000,
+    center:{x:26446000, y:-28946000, z:-27976000}, radius:3000,
     bodies:[
-      {name:'Mars',    type:'planet', x:1031072, y:0, z:0,     r:60000, color:'#e8614a'},
-      {name:'Europa',  type:'moon',   x:1047456, y:0, z:0,     r:19000, color:'#a0c8e0'}
+      {name:'Mars', type:'planet', x:26446000, y:-28946000, z:-27976000, r:3000, color:'#e8614a'}
     ]
   },
-  // ── Alien Planet (Vanilla) ────────────────────────────────────────────────
-  { id:'alien', name:'Alien Planet', icon:'👽', color:'#80d060',
-    center:{x:131072,y:131072,z:0}, radius:80000,
+  // ── Titan ─────────────────────────────────────────────────────────────────
+  { id:'titan', name:'Titan', icon:'🌑', color:'#f0c040',
+    center:{x:-20181000, y:-18554000, z:-18648000}, radius:3000,
     bodies:[
-      {name:'Alien Planet', type:'planet', x:131072, y:131072, z:0, r:60000, color:'#80d060'},
-      {name:'Triton',       type:'moon',   x:147456, y:131072, z:0, r:9500,  color:'#60a0a0'}
+      {name:'Titan', type:'planet', x:-20181000, y:-18554000, z:-18648000, r:3000, color:'#f0c040'}
     ]
-  },
-  // ── Pertam (Vanilla DLC) ──────────────────────────────────────────────────
-  { id:'pertam', name:'Pertam', icon:'🟤', color:'#c8a060',
-    center:{x:0,y:-1031072,z:0}, radius:50000,
-    bodies:[
-      {name:'Pertam', type:'planet', x:0, y:-1031072, z:0, r:30000, color:'#c8a060'}
-    ]
-  },
-  // ── Titan (Vanilla moon standalone) ──────────────────────────────────────
-  { id:'titan', name:'Titan', icon:'🪐', color:'#f0c040',
-    center:{x:0,y:0,z:1031072}, radius:30000,
-    bodies:[
-      {name:'Titan', type:'moon', x:0, y:0, z:1031072, r:19000, color:'#f0c040'}
-    ]
-  },
-  // ── Asteroidensektor ─────────────────────────────────────────────────────
-  { id:'asteroids', name:'Asteroiden', icon:'☄️', color:'#a0a0a0',
-    center:{x:0,y:0,z:0}, radius:0, bodies:[],
-    note:'Alle Punkte die keinem Planeten zugeordnet sind, aber in Planetennähe'
   },
   // ── Outer Space ───────────────────────────────────────────────────────────
   { id:'space', name:'Outer Space', icon:'🌌', color:'#6060c0',
@@ -2961,26 +2947,7 @@ function isPointFiltered(p) {
 // Robuste Implementierung: liest immer getBoundingClientRect() für genaue Position
 // ─── PANEL DRAG SYSTEM ───────────────────────────────────────────────────────
 // Globaler Drag-State — verhindert Konflikte zwischen Panel- und Canvas-Drag
-// ─── PANEL DRAG + PIN SYSTEM ────────────────────────────────────────────────
-const _pinnedPanels = new Set();  // IDs von angepinnten Panels
-
-function togglePin(panelId, btn) {
-  if (_pinnedPanels.has(panelId)) {
-    _pinnedPanels.delete(panelId);
-    btn.classList.remove('active');
-    btn.title = 'Anpinnen';
-    const h = document.getElementById(panelId)
-              && document.getElementById(panelId).querySelector('.panel-header');
-    if (h) h.classList.remove('pinned');
-  } else {
-    _pinnedPanels.add(panelId);
-    btn.classList.add('active');
-    btn.title = 'Loslösen';
-    const h = document.getElementById(panelId)
-              && document.getElementById(panelId).querySelector('.panel-header');
-    if (h) h.classList.add('pinned');
-  }
-}
+// ─── PANEL DRAG SYSTEM ────────────────────────────────────────────────
 
 function makeDraggable(panelEl, handleEl) {
   if (!panelEl || !handleEl) return;
@@ -3009,9 +2976,6 @@ function makeDraggable(panelEl, handleEl) {
         e.target.tagName === 'SELECT'   ||
         e.target.tagName === 'TEXTAREA' ||
         e.target.tagName === 'A') return;
-
-    // FIX: Gepinntes Panel nicht ziehen (null-safe)
-    if (_pinnedPanels && _pinnedPanels.has(panelEl.id)) return;
 
     e.preventDefault();
     e.stopPropagation();
@@ -3698,7 +3662,7 @@ document.getElementById('wizard-overlay').addEventListener('click',e=>{
 
 <!-- SPIELER-PANEL: permanent sichtbar, verschiebbar -->
 <div id="players-panel">
-  <div id="players-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// SPIELER</span><span id="players-online-count" style="font-size:0.6rem;background:rgba(0,200,255,0.12);color:#00c8ff;border-radius:10px;padding:1px 7px">0</span><button class="pin-btn" title="Anpinnen / Loslösen" onclick="togglePin('players-panel',this)">📌</button></div>
+  <div id="players-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// SPIELER</span><span id="players-online-count" style="font-size:0.6rem;background:rgba(0,200,255,0.12);color:#00c8ff;border-radius:10px;padding:1px 7px">0</span></div>
   <div id="players-list"></div>
   <div id="players-footer">↺ Sync 30s</div>
 </div>
@@ -3730,13 +3694,13 @@ document.getElementById('wizard-overlay').addEventListener('click',e=>{
 
     <!-- Planet-Schnellübersicht -->
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid rgba(255,107,53,0.1)">
-      <div style="font-size:0.58rem;color:rgba(168,216,234,0.3);letter-spacing:1px;width:100%;margin-bottom:4px">// VANILLA SE PLANETEN (offiziell)</div>
-      <div style="background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">🌍 <b style="color:#4a9eff">Erde</b><br><span style="color:rgba(168,216,234,0.4)">0,0,0 · r60000</span></div>
-      <div style="background:rgba(204,204,204,0.06);border:1px solid rgba(204,204,204,0.2);border-radius:3px;padding:6px 10px;font-size:0.6rem">🌙 <b style="color:#ccc">Mond</b><br><span style="color:rgba(168,216,234,0.4)">16384,0,0 · r9500</span></div>
-      <div style="background:rgba(232,97,74,0.08);border:1px solid rgba(232,97,74,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">🔴 <b style="color:#e8614a">Mars</b><br><span style="color:rgba(168,216,234,0.4)">1031072,0,0 · r60000</span></div>
-      <div style="background:rgba(160,224,136,0.08);border:1px solid rgba(160,224,136,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">👽 <b style="color:#a0e088">Alien</b><br><span style="color:rgba(168,216,234,0.4)">131072,131072,0 · r60000</span></div>
-      <div style="background:rgba(200,160,96,0.08);border:1px solid rgba(200,160,96,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">🟤 <b style="color:#c8a060">Pertam</b><br><span style="color:rgba(168,216,234,0.4)">0,-1031072,0 · r30000</span></div>
-      <div style="background:rgba(240,192,64,0.08);border:1px solid rgba(240,192,64,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">🪐 <b style="color:#f0c040">Titan</b><br><span style="color:rgba(168,216,234,0.4)">0,0,1031072 · r19000</span></div>
+      <div style="font-size:0.58rem;color:rgba(168,216,234,0.3);letter-spacing:1px;width:100%;margin-bottom:4px">// SERVER PLANETEN</div>
+      <div style="background:rgba(74,158,255,0.08);border:1px solid rgba(74,158,255,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">🌍 <b style="color:#4a9eff">Earth</b><br><span style="color:rgba(168,216,234,0.4)">0,0,0 · r3000</span></div>
+      <div style="background:rgba(160,160,160,0.08);border:1px solid rgba(160,160,160,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">☄️ <b style="color:#a0a0a0">Asteroid</b><br><span style="color:rgba(168,216,234,0.4)">1512000,-2102000,3049000 · r100</span></div>
+      <div style="background:rgba(255,107,53,0.08);border:1px solid rgba(255,107,53,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">⚡ <b style="color:#ff6b35">Event</b><br><span style="color:rgba(168,216,234,0.4)">23094000,23094000,23094000 · r200</span></div>
+      <div style="background:rgba(192,96,255,0.08);border:1px solid rgba(192,96,255,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">🪐 <b style="color:#c060ff">Galados</b><br><span style="color:rgba(168,216,234,0.4)">24003000,-8912000,14386000 · r3000</span></div>
+      <div style="background:rgba(232,97,74,0.08);border:1px solid rgba(232,97,74,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">🔴 <b style="color:#e8614a">Mars</b><br><span style="color:rgba(168,216,234,0.4)">26446000,-28946000,-27976000 · r3000</span></div>
+      <div style="background:rgba(240,192,64,0.08);border:1px solid rgba(240,192,64,0.25);border-radius:3px;padding:6px 10px;font-size:0.6rem">🌑 <b style="color:#f0c040">Titan</b><br><span style="color:rgba(168,216,234,0.4)">-20181000,-18554000,-18648000 · r3000</span></div>
     </div>
 
     <div id="quadrant-list-editor"></div>
@@ -3800,6 +3764,214 @@ document.getElementById('wizard-overlay').addEventListener('click',e=>{
 
 </div>
 </div>
+<!-- ═══════════════════════════════════════════════ SEKTOR-ANALYSE OVERLAY -->
+<div id="analyse-overlay" style="display:none;position:fixed;inset:0;z-index:3600;background:rgba(0,5,15,0.93);align-items:center;justify-content:center;backdrop-filter:blur(6px)">
+  <div style="background:rgba(3,12,25,0.99);border:1px solid rgba(127,255,127,0.25);border-radius:6px;width:min(780px,96vw);max-height:88vh;overflow-y:auto;box-shadow:0 0 80px rgba(127,255,127,0.06);font-family:'Share Tech Mono',monospace">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid rgba(127,255,127,0.12);background:rgba(127,255,127,0.04);position:sticky;top:0;z-index:1">
+      <div style="font-family:'Orbitron',sans-serif;font-size:0.85rem;letter-spacing:3px;color:#7fff7f">🔍 SEKTOR-ANALYSE</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button onclick="runAnalyse()" style="background:rgba(127,255,127,0.1);border:1px solid rgba(127,255,127,0.35);color:#7fff7f;font-family:'Share Tech Mono',monospace;font-size:0.62rem;letter-spacing:2px;padding:5px 14px;border-radius:3px;cursor:pointer">↺ NEU LADEN</button>
+        <button onclick="closeAnalyse()" style="background:none;border:none;color:rgba(168,216,234,0.4);font-size:1.1rem;cursor:pointer">✕</button>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div id="analyse-status" style="padding:12px 20px;font-size:0.65rem;color:rgba(168,216,234,0.5);letter-spacing:1px;border-bottom:1px solid rgba(127,255,127,0.07)">
+      Klick auf "NEU LADEN" um Gist-Daten zu holen...
+    </div>
+
+    <!-- Zusammenfassung -->
+    <div id="analyse-summary" style="display:none;padding:12px 20px;border-bottom:1px solid rgba(127,255,127,0.07)">
+      <div style="display:flex;flex-wrap:wrap;gap:8px" id="analyse-sector-counts"></div>
+    </div>
+
+    <!-- Probleme -->
+    <div id="analyse-problems-wrap" style="display:none;padding:14px 20px;border-bottom:1px solid rgba(127,255,127,0.07)">
+      <div style="font-size:0.6rem;color:#ff6b35;letter-spacing:2px;margin-bottom:10px">⚠ FALSCH ZUGEORDNET / SEKTOR UNKLAR</div>
+      <div id="analyse-problems"></div>
+    </div>
+
+    <!-- Alle Punkte -->
+    <div id="analyse-all-wrap" style="display:none;padding:14px 20px">
+      <div style="font-size:0.6rem;color:rgba(168,216,234,0.4);letter-spacing:2px;margin-bottom:10px">// ALLE PUNKTE</div>
+      <div id="analyse-table"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function openAnalyse() {
+  document.getElementById('analyse-overlay').style.display = 'flex';
+  runAnalyse();
+}
+function closeAnalyse() {
+  document.getElementById('analyse-overlay').style.display = 'none';
+}
+document.getElementById('analyse-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('analyse-overlay')) closeAnalyse();
+});
+
+async function runAnalyse() {
+  const statusEl  = document.getElementById('analyse-status');
+  const summaryEl = document.getElementById('analyse-summary');
+  const countsEl  = document.getElementById('analyse-sector-counts');
+  const probWrap  = document.getElementById('analyse-problems-wrap');
+  const probEl    = document.getElementById('analyse-problems');
+  const allWrap   = document.getElementById('analyse-all-wrap');
+  const tableEl   = document.getElementById('analyse-table');
+
+  summaryEl.style.display = 'none';
+  probWrap.style.display  = 'none';
+  allWrap.style.display   = 'none';
+  statusEl.textContent    = '⏳ Lade Daten vom Gist...';
+  statusEl.style.color    = 'rgba(168,216,234,0.5)';
+
+  if (!isConfigured()) {
+    statusEl.textContent = '⚠ Nicht konfiguriert – bitte zuerst GitHub einrichten (⚙)';
+    statusEl.style.color = '#ff4444';
+    return;
+  }
+
+  let pts;
+  try {
+    pts = await doLoad();
+  } catch(e) {
+    statusEl.textContent = '⚠ Fehler beim Laden: ' + e.message;
+    statusEl.style.color = '#ff4444';
+    return;
+  }
+
+  if (!pts || pts.length === 0) {
+    statusEl.textContent = '⚠ Keine Punkte im Gist gefunden.';
+    statusEl.style.color = '#ff6b35';
+    return;
+  }
+
+  // ── Analyse ──────────────────────────────────────────────────────────────
+  // Erwarteter Sektor aus dem Namen erkennen (heuristisch)
+  const SECTOR_KEYWORDS = {
+    earth:    ['earth','erde','erd','moon','luna','mond'],
+    asteroid: ['asteroid','rock','stone'],
+    event:    ['event'],
+    galados:  ['galados'],
+    mars:     ['mars'],
+    titan:    ['titan'],
+  };
+
+  function guessExpectedSector(name) {
+    const n = name.toLowerCase();
+    for (const [sec, kw] of Object.entries(SECTOR_KEYWORDS)) {
+      if (kw.some(k => n.includes(k))) return sec;
+    }
+    return null;
+  }
+
+  // Sektor bestimmen (gleiche Logik wie getPointQuadrant)
+  function calcSector(p) {
+    let bestId = null, bestDist = Infinity;
+    for (const q of quadrants) {
+      if (!q.radius || q.radius < 1) continue;
+      const d = Math.sqrt((p.x-q.center.x)**2 + (p.y-q.center.y)**2 + (p.z-q.center.z)**2);
+      if (d <= q.radius * 2.0 && d < bestDist) { bestDist = d; bestId = q.id; }
+    }
+    return { id: bestId || 'space', dist: bestId ? bestDist : null };
+  }
+
+  // Abstand zum nächsten Sektor-Zentrum (für Info)
+  function nearestSector(p) {
+    let best = null, bestD = Infinity;
+    for (const q of quadrants) {
+      if (!q.radius || q.radius < 1) continue;
+      const d = Math.sqrt((p.x-q.center.x)**2 + (p.y-q.center.y)**2 + (p.z-q.center.z)**2);
+      if (d < bestD) { bestD = d; best = q; }
+    }
+    return best ? { q: best, d: Math.round(bestD) } : null;
+  }
+
+  const sectorMap = {};
+  quadrants.forEach(q => { sectorMap[q.id] = { q, points:[] }; });
+  sectorMap['space'] = { q:{id:'space',name:'Outer Space',icon:'🌌',color:'#6060c0'}, points:[] };
+
+  const problems = [];
+
+  pts.forEach(p => {
+    const { id: sid, dist } = calcSector(p);
+    const qInfo = quadrants.find(q=>q.id===sid) || {id:'space',name:'Outer Space',icon:'🌌',color:'#6060c0'};
+    const guessed = guessExpectedSector(p.name);
+    const isWrong = guessed && guessed !== sid;
+    const isSpace = sid === 'space';
+
+    if (!sectorMap[sid]) sectorMap[sid] = { q: qInfo, points:[] };
+    sectorMap[sid].points.push({ p, dist, isWrong, guessed });
+
+    if (isWrong || isSpace) {
+      const near = nearestSector(p);
+      problems.push({ p, sid, qInfo, isWrong, isSpace, guessed, dist, near });
+    }
+  });
+
+  // ── Render Zusammenfassung ───────────────────────────────────────────────
+  statusEl.textContent = '✓ ' + pts.length + ' Punkte geladen · ' + problems.length + ' Probleme gefunden';
+  statusEl.style.color = problems.length > 0 ? '#ff6b35' : '#7fff7f';
+
+  countsEl.innerHTML = Object.values(sectorMap)
+    .filter(s => s.points.length > 0)
+    .map(s => {
+      const col = s.q.color || '#aaa';
+      return `<div style="background:rgba(0,0,0,0.3);border:1px solid ${col}44;border-radius:3px;padding:6px 12px;font-size:0.62rem">
+        ${s.q.icon} <span style="color:${col}">${s.q.name}</span>
+        <span style="color:rgba(168,216,234,0.6);margin-left:6px">${s.points.length} Pkt</span>
+      </div>`;
+    }).join('');
+  summaryEl.style.display = 'block';
+
+  // ── Render Probleme ──────────────────────────────────────────────────────
+  if (problems.length > 0) {
+    probEl.innerHTML = problems.map(({ p, sid, qInfo, isWrong, isSpace, guessed, dist, near }) => {
+      const expectedQ = guessed ? (quadrants.find(q=>q.id===guessed)||{name:guessed,icon:'?',color:'#aaa'}) : null;
+      const nearInfo  = near ? ` · nächster Sektor: <b style="color:${near.q.color}">${near.q.icon} ${near.q.name}</b> (${(near.d/1000).toFixed(0)}k km)` : '';
+      const distInfo  = dist != null ? ` · ${(dist/1000).toFixed(0)}k km vom Zentrum` : '';
+      const tag = isSpace
+        ? `<span style="color:#ff4444;background:rgba(255,68,68,0.1);border:1px solid rgba(255,68,68,0.3);border-radius:2px;padding:1px 5px;font-size:0.55rem">OUTER SPACE</span>`
+        : `<span style="color:${qInfo.color};background:rgba(0,0,0,0.3);border:1px solid ${qInfo.color}44;border-radius:2px;padding:1px 5px;font-size:0.55rem">${qInfo.icon} ${qInfo.name.toUpperCase()}</span>`;
+      const expTag = expectedQ
+        ? `<span style="color:rgba(168,216,234,0.5);font-size:0.58rem"> erwartet: <b style="color:${expectedQ.color}">${expectedQ.icon||''} ${expectedQ.name}</b></span>`
+        : '';
+      return `<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,107,53,0.08)">
+        <div style="flex:1">
+          <div style="font-size:0.68rem;color:#fff;margin-bottom:3px">${p.name}</div>
+          <div style="font-size:0.58rem;color:rgba(168,216,234,0.4)">${p.x} / ${p.y} / ${p.z}${distInfo}${nearInfo}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;white-space:nowrap">${tag}${expTag}</div>
+      </div>`;
+    }).join('');
+    probWrap.style.display = 'block';
+  }
+
+  // ── Render Alle Punkte ───────────────────────────────────────────────────
+  const rowStyle = 'display:grid;grid-template-columns:1fr 180px 90px;gap:8px;padding:5px 0;border-bottom:1px solid rgba(0,200,255,0.05);align-items:center;font-size:0.62rem';
+  tableEl.innerHTML =
+    `<div style="${rowStyle};color:rgba(168,216,234,0.35);letter-spacing:1px;font-size:0.55rem">
+      <div>NAME</div><div>KOORDINATEN</div><div style="text-align:right">SEKTOR</div>
+    </div>` +
+    pts.map(p => {
+      const { id: sid } = calcSector(p);
+      const q = quadrants.find(q=>q.id===sid) || {name:'Outer Space',icon:'🌌',color:'#6060c0'};
+      const guessed = guessExpectedSector(p.name);
+      const wrong = guessed && guessed !== sid;
+      const rowBg = wrong ? 'background:rgba(255,107,53,0.05);' : '';
+      return `<div style="${rowStyle};${rowBg}">
+        <div style="color:${wrong?'#ff6b35':'#fff'}">${p.name}${wrong?' ⚠':''}</div>
+        <div style="color:rgba(0,200,255,0.5);font-size:0.55rem">${p.x} / ${p.y} / ${p.z}</div>
+        <div style="text-align:right;color:${q.color}">${q.icon} ${q.name}</div>
+      </div>`;
+    }).join('');
+  allWrap.style.display = 'block';
+}
+</script>
 
 </body>
 </html>
