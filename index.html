@@ -47,11 +47,13 @@
   /* Header */
   #header {
     position: fixed; top: 0; left: 0; right: 0;
+    height: 52px;
     z-index: 400;
-    padding: 12px 24px;
-    background: linear-gradient(180deg, rgba(0,10,20,0.95) 0%, transparent 100%);
+    padding: 0 24px;
+    background: rgba(0,10,20,0.96);
     display: flex; align-items: center; gap: 20px;
     border-bottom: 1px solid rgba(0,200,255,0.15);
+    pointer-events: auto;
   }
   #header h1 {
     font-family: 'Orbitron', sans-serif;
@@ -146,7 +148,7 @@
     background: var(--panel);
     border: 1px solid rgba(0,200,255,0.2);
     border-radius: 4px;
-    z-index: 300;
+    z-index: 500;
     overflow: hidden;
     box-shadow: 0 0 30px rgba(0,0,0,0.7), inset 0 0 30px rgba(0,200,255,0.02);
     transition: transform 0.2s ease, opacity 0.2s ease;
@@ -185,7 +187,7 @@
   #legend {
     position: fixed;
     left: 14px; bottom: 14px;
-    z-index: 300;
+    z-index: 500;
     background: var(--panel);
     border: 1px solid rgba(0,200,255,0.15);
     border-radius: 4px;
@@ -217,7 +219,7 @@
   #controls {
     position: fixed;
     left: 14px; top: 92px;
-    z-index: 300;
+    z-index: 500;
     display: flex; flex-direction: column; gap: 6px;
   }
   /* Controls haben z-index 200, players z-index 400 — panel liegt drüber, darf aber nicht überlappen */
@@ -241,7 +243,7 @@
   #view-toggle {
     position: fixed;
     left: 14px; top: 228px;
-    z-index: 300;
+    z-index: 500;
   }
   .view-btn {
     display: block;
@@ -268,7 +270,7 @@
   #filter-panel {
     position: fixed;
     left: 14px; top: 342px;
-    z-index: 300;
+    z-index: 500;
     background: var(--panel);
     border: 1px solid rgba(0,200,255,0.15);
     border-radius: 4px;
@@ -297,7 +299,7 @@
     position: fixed;
     top: 92px;
     left: 50%; transform: translateX(-50%);
-    z-index: 300;
+    z-index: 500;
     display: flex; flex-direction: column;
     width: 280px;
     min-width: 180px;
@@ -398,7 +400,7 @@
     background: var(--panel);
     border: 1px solid rgba(0,200,255,0.2);
     border-radius: 4px;
-    z-index: 300;
+    z-index: 500;
     overflow: hidden;
     box-shadow: 0 0 30px rgba(0,0,0,0.7);
   }
@@ -783,7 +785,7 @@
     position: fixed;
     top: 92px;
     right: 320px;
-    z-index: 300;
+    z-index: 500;
     width: 200px;
     min-width: 160px;
     background: rgba(3,12,25,0.95);
@@ -880,7 +882,7 @@
     position: fixed;
     top: 52px;
     left: 0; right: 0;
-    z-index: 390;
+    z-index: 450;
     display: flex;
     justify-content: center;
     pointer-events: none;
@@ -998,6 +1000,7 @@
     border-bottom: 1px solid rgba(0,200,255,0.12);
     cursor: grab;
     user-select: none;
+    pointer-events: auto;
     font-family: 'Orbitron', sans-serif;
     font-size: 0.58rem;
     letter-spacing: 2px;
@@ -1010,9 +1013,28 @@
     font-size: 1rem;
     line-height: 1;
     flex-shrink: 0;
+    pointer-events: none; /* grip selbst soll nicht klickbar sein */
   }
   .panel-header:hover .grip { opacity: 0.7; }
-  .panel-header .ph-title { flex: 1; }
+  .panel-header .ph-title {
+    flex: 1;
+    pointer-events: none; /* Text soll nicht klickbar sein */
+  }
+  .panel-header.pinned { cursor: default; }
+  .panel-header.pinned .grip { opacity: 0.15; }
+  .pin-btn {
+    background: none;
+    border: none;
+    color: rgba(168,216,234,0.25);
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    pointer-events: auto;
+    transition: color 0.15s;
+  }
+  .pin-btn:hover { color: rgba(168,216,234,0.7); }
+  .pin-btn.active { color: #ff6b35; }
 
 </style>
 </head>
@@ -1035,7 +1057,7 @@
   <span id="app-version" style="font-size:0.52rem;color:rgba(168,216,234,0.22);letter-spacing:2px;padding-right:4px"></span>
   <button onclick="openSetupWizard()" title="GitHub Verbindung" style="background:rgba(0,200,255,0.07);border:1px solid rgba(0,200,255,0.2);color:rgba(0,200,255,0.6);font-size:1rem;width:32px;height:32px;border-radius:3px;cursor:pointer;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.color='#00c8ff';this.style.background='rgba(0,200,255,0.15)'" onmouseout="this.style.color='rgba(0,200,255,0.6)';this.style.background='rgba(0,200,255,0.07)'">⚙</button>
   <button onclick="openSettings()" title="Einstellungen" style="background:rgba(255,107,53,0.07);border:1px solid rgba(255,107,53,0.25);color:rgba(255,107,53,0.7);font-size:0.85rem;width:32px;height:32px;border-radius:3px;cursor:pointer;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.color='#ff6b35';this.style.background='rgba(255,107,53,0.15)'" onmouseout="this.style.color='rgba(255,107,53,0.7)';this.style.background='rgba(255,107,53,0.07)'">☰</button>
-  <div id="coords-display">CURSOR: —</div>
+  <div id="coords-display" title="Koordinaten relativ zur Erde (0, 0, 0)">CURSOR: —</div>
 </div>
 
 <!-- SUCHE -->
@@ -1043,7 +1065,7 @@
   <div id="search-box-header" class="panel-header" style="width:100%;border-radius:3px 3px 0 0;border-bottom:1px solid rgba(0,200,255,0.15)">
     <span class="grip">⠿</span>
     <span class="ph-title">SUCHE</span>
-  </div>
+  <button class="pin-btn" title="Anpinnen / Loslösen" onclick="togglePin('search-box',this)">📌</button></div>
   <div style="display:flex;width:100%">
     <input type="text" id="search-input" placeholder="Name, Ressource, Koordinate..." autocomplete="off" oninput="onSearch()" onkeydown="onSearchKey(event)" style="flex:1;border-radius:0;border-top:none">
     <button id="search-clear" onclick="clearSearch()" style="border-top:none">✕</button>
@@ -1080,7 +1102,7 @@
 </div>
 
 <div id="filter-panel">
-  <div id="filter-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">FILTER</span></div>
+  <div id="filter-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">FILTER</span><button class="pin-btn" title="Anpinnen / Loslösen" onclick="togglePin('filter-panel',this)">📌</button></div>
   <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('eis')"> <span style="color:#75c9f1">● Eis / Ice</span></label>
   <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('metall')"> <span style="color:#f1bf75">● Metalle</span></label>
   <label class="filter-item"><input type="checkbox" checked onchange="toggleFilter('edel')"> <span style="color:#f1d875">● Edelmetalle</span></label>
@@ -1092,7 +1114,7 @@
 </div>
 
 <div id="info-panel" class="hidden">
-  <div id="info-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// OBJEKT DETAILS</span></div>
+  <div id="info-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// OBJEKT DETAILS</span><button class="pin-btn" title="Anpinnen / Loslösen" onclick="togglePin('info-panel',this)">📌</button></div>
   <div id="info-content">
     <!-- Editierbarer Name -->
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
@@ -1167,7 +1189,7 @@
 <div id="delete-toast"></div>
 
 <div id="legend">
-  <div id="legend-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">LEGENDE</span></div>
+  <div id="legend-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">LEGENDE</span><button class="pin-btn" title="Anpinnen / Loslösen" onclick="togglePin('legend',this)">📌</button></div>
   <div class="legend-item"><div class="legend-dot" style="background:#7fff7f;box-shadow:0 0 6px #7fff7f"></div>Raumstation (Origin)</div>
   <div class="legend-item"><div class="legend-dot" style="background:#75c9f1"></div>Eis / Ice</div>
   <div class="legend-item"><div class="legend-dot" style="background:#f1bf75"></div>Metalle (Fe, Ni, Co...)</div>
@@ -1189,7 +1211,7 @@
 
 <!-- ADD GPS PANEL -->
 <div id="add-panel">
-  <div id="add-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// GPS KOORDINATE HINZUFÜGEN</span><span id="add-panel-toggle" onclick="toggleAddPanel();event.stopPropagation()" style="cursor:pointer;font-size:0.8rem;margin-left:4px">▲</span></div>
+  <div id="add-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// GPS KOORDINATE HINZUFÜGEN</span><span id="add-panel-toggle" onclick="toggleAddPanel();event.stopPropagation()" style="cursor:pointer;font-size:0.8rem;margin-left:4px">▲</span><button class="pin-btn" title="Anpinnen / Loslösen" onclick="togglePin('add-panel',this)">📌</button></div>
   <div id="add-panel-body">
     <div class="tab-row">
       <button class="tab-btn active" onclick="switchTab('raw')">RAW STRING</button>
@@ -1810,10 +1832,9 @@ let hoveredPoint = null;
 let filters = { eis:true, metall:true, edel:true, spezial:true, station:true, planet:true, unbekannt:true, erschoepft:true };
 
 function resize() {
-  canvas.width = window.innerWidth;
+  canvas.width  = window.innerWidth;
   canvas.height = window.innerHeight;
-  if (station) resetView();
-  else draw();
+  resetView();  // Erde (0,0,0) immer im Zentrum — mit oder ohne Station
 }
 
 function getCoords(p) {
@@ -1823,11 +1844,13 @@ function getCoords(p) {
 }
 
 function resetView() {
-  if (!station) return;
-  const sc = station ? getCoords(station) : { a:0, b:0 };
-  transform.scale = 0.0035;
-  transform.x = canvas.width/2 - sc.a * transform.scale;
-  transform.y = canvas.height/2 - sc.b * transform.scale;
+  // Referenzpunkt: Station wenn vorhanden, sonst Erde (0,0,0)
+  const ref = station ? getCoords(station) : { a: 0, b: 0 };
+  // Startskala: Erde gut sichtbar, Planeten in Reichweite
+  // SE-Koordinaten in Metern; Erd-Radius 60000m, Mars ~1Mio m entfernt
+  transform.scale = station ? 0.0035 : 0.0004;
+  transform.x = canvas.width  / 2 - ref.a * transform.scale;
+  transform.y = canvas.height / 2 - ref.b * transform.scale;
   draw();
 }
 
@@ -2664,7 +2687,7 @@ function addManual() {
 // ═══════════════════════════════════════════════════════════════════════════════
 //  SETTINGS SYSTEM
 // ═══════════════════════════════════════════════════════════════════════════════
-let displaySettings = { showBorders:false, showPlanetIcons:true, showLabels:true, showGrid:true, pointSize:5, labelSize:11 };
+let displaySettings = { showBorders:true, showPlanetIcons:true, showLabels:true, showGrid:true, pointSize:5, labelSize:11 };
 let syncIntervalSec = 30;
 const DISP_CFG_KEY = 'se_display_v1';
 
@@ -2776,9 +2799,9 @@ function renderQuadrantEditor() {
       <!-- Titelzeile: Icon · Name · Farbe · Löschen -->
       <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">
         <input type="text" value="${q.icon||'🔵'}" style="width:34px;text-align:center;font-size:1rem"
-          onchange="updateQuadrant(${i},'icon',this.value)" title="Emoji-Icon">
+          oninput="updateQuadrant(${i},'icon',this.value)" title="Emoji-Icon">
         <input type="text" value="${q.name}" style="flex:1"
-          onchange="updateQuadrant(${i},'name',this.value)" placeholder="Sektor-Name">
+          oninput="updateQuadrant(${i},'name',this.value)" placeholder="Sektor-Name">
         <input type="color" value="${q.color||'#00c8ff'}"
           style="width:30px;height:26px;padding:0;border:none;cursor:pointer;background:none;border-radius:3px"
           onchange="updateQuadrant(${i},'color',this.value)" title="Farbe">
@@ -2793,11 +2816,11 @@ function renderQuadrantEditor() {
         <div style="font-size:0.55rem;color:rgba(168,216,234,0.35);letter-spacing:1px;margin-bottom:4px">ZENTRUM (X / Y / Z)</div>
         <div style="display:flex;gap:5px">
           <input type="number" value="${q.center.x}" placeholder="X"
-            style="flex:1;min-width:0" onchange="updateQuadrantCenter(${i},'x',this.value)" title="X-Koordinate des Mittelpunkts">
+            style="flex:1;min-width:0" oninput="updateQuadrantCenter(${i},'x',this.value)" title="X-Koordinate des Mittelpunkts">
           <input type="number" value="${q.center.y}" placeholder="Y"
-            style="flex:1;min-width:0" onchange="updateQuadrantCenter(${i},'y',this.value)" title="Y-Koordinate">
+            style="flex:1;min-width:0" oninput="updateQuadrantCenter(${i},'y',this.value)" title="Y-Koordinate">
           <input type="number" value="${q.center.z}" placeholder="Z"
-            style="flex:1;min-width:0" onchange="updateQuadrantCenter(${i},'z',this.value)" title="Z-Koordinate">
+            style="flex:1;min-width:0" oninput="updateQuadrantCenter(${i},'z',this.value)" title="Z-Koordinate">
         </div>
       </div>
 
@@ -2840,11 +2863,19 @@ function renderQuadrantEditor() {
 
 function updateQuadrant(i, key, val) {
   quadrants[i][key] = key==='radius' ? (parseInt(val)||0) : val;
-  saveQuadrantsToStorage(); renderQuadrantBar(); draw();
+  saveQuadrantsToStorage();
+  renderQuadrantBar();
+  draw();
+  // kein renderQuadrantEditor — Input-Fokus bleibt erhalten
 }
 function updateQuadrantCenter(i, axis, val) {
-  quadrants[i].center[axis] = parseFloat(val)||0;
-  saveQuadrantsToStorage(); renderQuadrantBar(); draw();
+  const parsed = parseFloat(val);
+  if (isNaN(parsed) && val !== '' && val !== '-') return; // während Tippen warten
+  quadrants[i].center[axis] = isNaN(parsed) ? 0 : parsed;
+  saveQuadrantsToStorage();
+  renderQuadrantBar();
+  draw();
+  // Kein renderQuadrantEditor() — würde Input-Fokus unterbrechen!
 }
 function removeQuadrant(i) {
   if (quadrants.length<=1) return;
@@ -2927,44 +2958,75 @@ function isPointFiltered(p) {
 // Robuste Implementierung: liest immer getBoundingClientRect() für genaue Position
 // ─── PANEL DRAG SYSTEM ───────────────────────────────────────────────────────
 // Globaler Drag-State — verhindert Konflikte zwischen Panel- und Canvas-Drag
-let _panelDragging = false;
+// ─── PANEL DRAG + PIN SYSTEM ────────────────────────────────────────────────
+const _pinnedPanels = new Set();  // IDs von angepinnten Panels
+
+function togglePin(panelId, btn) {
+  if (_pinnedPanels.has(panelId)) {
+    _pinnedPanels.delete(panelId);
+    btn.classList.remove('active');
+    btn.title = 'Anpinnen';
+    const h = document.getElementById(panelId)
+              && document.getElementById(panelId).querySelector('.panel-header');
+    if (h) h.classList.remove('pinned');
+  } else {
+    _pinnedPanels.add(panelId);
+    btn.classList.add('active');
+    btn.title = 'Loslösen';
+    const h = document.getElementById(panelId)
+              && document.getElementById(panelId).querySelector('.panel-header');
+    if (h) h.classList.add('pinned');
+  }
+}
 
 function makeDraggable(panelEl, handleEl) {
   if (!panelEl || !handleEl) return;
 
-  let ox = 0, oy = 0, mx = 0, my = 0;
-
-  handleEl.addEventListener('mousedown', function(e) {
-    // Interaktive Elemente innerhalb des Handles nicht blockieren
-    if (e.target.tagName === 'BUTTON'   ||
-        e.target.tagName === 'INPUT'    ||
-        e.target.tagName === 'SELECT'   ||
-        e.target.tagName === 'TEXTAREA' ||
-        e.target.tagName === 'A'        ||
-        e.target.id      === 'add-panel-toggle') return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    // Immer frisch aus getBoundingClientRect — egal ob right/bottom/transform gesetzt
+  // Snapshot-Funktion: fixiert CSS-Position aus der visuellen Position
+  function snapPosition() {
     const r = panelEl.getBoundingClientRect();
-    panelEl.style.transform = 'none';  // reset translateX(-50%) etc.
+    panelEl.style.transform = 'none';
     panelEl.style.left   = r.left + 'px';
     panelEl.style.top    = r.top  + 'px';
     panelEl.style.right  = 'auto';
     panelEl.style.bottom = 'auto';
-    panelEl.style.zIndex = '1000';
+  }
 
-    ox = r.left;
-    oy = r.top;
-    mx = e.clientX;
-    my = e.clientY;
+  // Beim ersten Laden: Position einmalig einfrieren damit CSS-Werte stimmen
+  // (nach kurzem Delay damit Layout gerendert ist)
+  setTimeout(snapPosition, 80);
 
-    _panelDragging = true;
+  let ox = 0, oy = 0, mx = 0, my = 0, active = false;
+
+  handleEl.addEventListener('mousedown', function(e) {
+    // Buttons/Inputs im Handle nicht blockieren
+    if (e.target.tagName === 'BUTTON'   ||
+        e.target.tagName === 'INPUT'    ||
+        e.target.tagName === 'SELECT'   ||
+        e.target.tagName === 'TEXTAREA' ||
+        e.target.tagName === 'A') return;
+
+    // Gepinntes Panel nicht ziehen
+    if (_pinnedPanels.has(panelEl.id)) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const r = panelEl.getBoundingClientRect();
+    panelEl.style.transform = 'none';
+    panelEl.style.left   = r.left + 'px';
+    panelEl.style.top    = r.top  + 'px';
+    panelEl.style.right  = 'auto';
+    panelEl.style.bottom = 'auto';
+    panelEl.style.zIndex = '900';
+
+    ox = r.left; oy = r.top;
+    mx = e.clientX; my = e.clientY;
+    active = true;
     panelEl.classList.add('panel-dragging');
 
     function onMove(ev) {
-      if (!_panelDragging) return;
+      if (!active) return;
       let nx = ox + (ev.clientX - mx);
       let ny = oy + (ev.clientY - my);
       nx = Math.max(0, Math.min(window.innerWidth  - panelEl.offsetWidth,  nx));
@@ -2975,6 +3037,7 @@ function makeDraggable(panelEl, handleEl) {
       if (panelEl.id === 'search-box') {
         const sr = document.getElementById('search-results');
         if (sr && sr.style.display !== 'none') {
+          sr.style.transform = 'none';
           sr.style.left  = nx + 'px';
           sr.style.top   = (ny + panelEl.offsetHeight) + 'px';
           sr.style.width = panelEl.offsetWidth + 'px';
@@ -2983,8 +3046,9 @@ function makeDraggable(panelEl, handleEl) {
     }
 
     function onUp() {
-      _panelDragging = false;
+      active = false;
       panelEl.classList.remove('panel-dragging');
+      panelEl.style.zIndex = '500';
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup',   onUp);
     }
@@ -2994,20 +3058,20 @@ function makeDraggable(panelEl, handleEl) {
   });
 }
 
-// Panels nach DOM-Load registrieren
+// Panels registrieren sobald DOM bereit
 document.addEventListener('DOMContentLoaded', function() {
-  const panels = [
-    { panel: 'info-panel',    handle: 'info-panel-header'    },
-    { panel: 'legend',        handle: 'legend-header'        },
-    { panel: 'players-panel', handle: 'players-panel-header' },
-    { panel: 'filter-panel',  handle: 'filter-panel-header'  },
-    { panel: 'add-panel',     handle: 'add-panel-header'     },
-    { panel: 'search-box',    handle: 'search-box-header'    },
-  ];
-  panels.forEach(function(cfg) {
-    const p = document.getElementById(cfg.panel);
-    const h = document.getElementById(cfg.handle);
+  [
+    ['info-panel',    'info-panel-header'   ],
+    ['legend',        'legend-header'       ],
+    ['players-panel', 'players-panel-header'],
+    ['filter-panel',  'filter-panel-header' ],
+    ['add-panel',     'add-panel-header'    ],
+    ['search-box',    'search-box-header'   ],
+  ].forEach(function([pid, hid]) {
+    const p = document.getElementById(pid);
+    const h = document.getElementById(hid);
     if (p && h) makeDraggable(p, h);
+    else console.warn('Panel/Handle not found:', pid, hid);
   });
 });
 
@@ -3626,7 +3690,7 @@ document.getElementById('wizard-overlay').addEventListener('click',e=>{
 
 <!-- SPIELER-PANEL: permanent sichtbar, verschiebbar -->
 <div id="players-panel">
-  <div id="players-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// SPIELER</span><span id="players-online-count" style="font-size:0.6rem;background:rgba(0,200,255,0.12);color:#00c8ff;border-radius:10px;padding:1px 7px">0</span></div>
+  <div id="players-panel-header" class="panel-header"><span class="grip">⠿</span><span class="ph-title">// SPIELER</span><span id="players-online-count" style="font-size:0.6rem;background:rgba(0,200,255,0.12);color:#00c8ff;border-radius:10px;padding:1px 7px">0</span><button class="pin-btn" title="Anpinnen / Loslösen" onclick="togglePin('players-panel',this)">📌</button></div>
   <div id="players-list"></div>
   <div id="players-footer">↺ Sync 30s</div>
 </div>
