@@ -2078,6 +2078,7 @@ canvas.addEventListener('mousedown', e => {
   // Kein Canvas-Drag wenn ein Panel-Element getroffen wurde
   const hit = document.elementFromPoint(e.clientX, e.clientY);
   if (hit && hit.closest('#info-panel, #legend, #filter-panel, #add-panel, #players-panel, #controls, #view-toggle, #header, #search-box, #search-results, #quadrant-bar-wrap')) return;
+  e.preventDefault();
   dragging = true;
   lastMouse = { x: e.clientX, y: e.clientY };
   document.getElementById('map-container').classList.add('grabbing');
@@ -3147,6 +3148,9 @@ function init3D() {
 
     // Mouse events
     canvas.addEventListener('mousedown', e => {
+      // Panels nicht blockieren
+      const hit3d = document.elementFromPoint(e.clientX, e.clientY);
+      if (hit3d && hit3d.closest('#info-panel,#legend,#filter-panel,#add-panel,#players-panel,#controls,#view-toggle,#header,#search-box,#search-results,#quadrant-bar-wrap')) return;
       e.preventDefault();
       orb.dragging=true; orb.rightDrag=e.button===2;
       orb.lastX=e.clientX; orb.lastY=e.clientY;
