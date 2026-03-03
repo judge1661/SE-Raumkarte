@@ -2538,8 +2538,10 @@ function onSearchKey(e) {
   }
 }
 
-// Close results when clicking map
-document.getElementById('map-container').addEventListener('mousedown', () => {
+// Close results when clicking map (nicht wenn Panel getroffen)
+document.getElementById('map-container').addEventListener('mousedown', (e) => {
+  const hit = document.elementFromPoint(e.clientX, e.clientY);
+  if (hit && hit.closest('#info-panel,#legend,#filter-panel,#add-panel,#players-panel,#controls,#view-toggle,#header,#search-box,#search-results,#quadrant-bar-wrap')) return;
   document.getElementById('search-results').style.display = 'none';
 });
 
@@ -2985,6 +2987,8 @@ function makeDraggable(panelEl, handleEl) {
   // Snapshot-Funktion: fixiert CSS-Position aus der visuellen Position
   function snapPosition() {
     const r = panelEl.getBoundingClientRect();
+    // FIX: Nur snappen wenn Panel wirklich sichtbar (nicht display:none / Größe 0)
+    if (r.width === 0 && r.height === 0) return;
     panelEl.style.transform = 'none';
     panelEl.style.left   = r.left + 'px';
     panelEl.style.top    = r.top  + 'px';
@@ -2993,8 +2997,7 @@ function makeDraggable(panelEl, handleEl) {
   }
 
   // Beim ersten Laden: Position einmalig einfrieren damit CSS-Werte stimmen
-  // (nach kurzem Delay damit Layout gerendert ist)
-  setTimeout(snapPosition, 80);
+  setTimeout(snapPosition, 150);
 
   let ox = 0, oy = 0, mx = 0, my = 0, active = false;
 
@@ -3006,12 +3009,13 @@ function makeDraggable(panelEl, handleEl) {
         e.target.tagName === 'TEXTAREA' ||
         e.target.tagName === 'A') return;
 
-    // Gepinntes Panel nicht ziehen
-    if (_pinnedPanels.has(panelEl.id)) return;
+    // FIX: Gepinntes Panel nicht ziehen (null-safe)
+    if (_pinnedPanels && _pinnedPanels.has(panelEl.id)) return;
 
     e.preventDefault();
     e.stopPropagation();
 
+    // FIX: Position immer frisch aus dem DOM lesen (nicht aus altem snapshot)
     const r = panelEl.getBoundingClientRect();
     panelEl.style.transform = 'none';
     panelEl.style.left   = r.left + 'px';
