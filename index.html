@@ -1890,27 +1890,60 @@ function draw() {
   }
 
 
-  // ── Quadrant-Grenzen (Einstellung: showBorders) ───────────────────────────
+  // ── Sektor-Kreise ─────────────────────────────────────────────────────────
   if (displaySettings.showBorders) {
     quadrants.forEach(q => {
-      if (!q.radius || q.radius < 100) return;
+      if (!q.radius || q.radius < 100 || q.id === 'space') return;
       const bc = getCoords({x:q.center.x, y:q.center.y, z:q.center.z});
       const { sx: bx, sy: by } = worldToScreen(bc.a, bc.b);
-      const screenR = q.radius * 2.0 * transform.scale;
-      const col = q.color || '#aaa';
+      const col     = q.color || '#aaa';
+      const rgb     = hexToRgb(col);
       const isActive = activeQuadrant === q.id;
-      ctx.beginPath(); ctx.arc(bx, by, screenR, 0, Math.PI*2);
-      ctx.strokeStyle = col + (isActive ? 'aa' : '33');
-      ctx.lineWidth   = isActive ? 1.5 : 0.8;
-      ctx.setLineDash([8, 6]);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      // Quadrant-Label
-      if (screenR > 30) {
-        ctx.fillStyle = col + (isActive ? 'cc' : '66');
-        ctx.font = "10px 'Share Tech Mono', monospace";
+      const screenR  = q.radius * transform.scale;        // echter Sektor-Radius (1×)
+      const screenR2 = q.radius * 2.0 * transform.scale;  // Zuordnungs-Grenze (2×)
+
+      // ── Gefüllter Sektor-Bereich (Radius 1×) ──────────────────────────────
+      if (screenR > 1) {
+        const grad = ctx.createRadialGradient(bx, by, 0, bx, by, screenR);
+        grad.addColorStop(0,   'rgba('+rgb+','+(isActive?'0.10':'0.05')+')');
+        grad.addColorStop(0.7, 'rgba('+rgb+','+(isActive?'0.07':'0.03')+')');
+        grad.addColorStop(1,   'rgba('+rgb+',0)');
+        ctx.beginPath(); ctx.arc(bx, by, screenR, 0, Math.PI*2);
+        ctx.fillStyle = grad;
+        ctx.fill();
+      }
+
+      // ── Sektor-Radius Kreis (1×) — solide, klar sichtbar ──────────────────
+      if (screenR > 1) {
+        ctx.beginPath(); ctx.arc(bx, by, screenR, 0, Math.PI*2);
+        ctx.strokeStyle = col + (isActive ? 'dd' : '88');
+        ctx.lineWidth   = isActive ? 2 : 1.5;
+        ctx.setLineDash([]);
+        ctx.stroke();
+      }
+
+      // ── Zuordnungs-Grenze (2×) — gestrichelt, dezent ──────────────────────
+      if (screenR2 > 1 && screenR2 !== screenR) {
+        ctx.beginPath(); ctx.arc(bx, by, screenR2, 0, Math.PI*2);
+        ctx.strokeStyle = col + (isActive ? '55' : '22');
+        ctx.lineWidth   = 0.7;
+        ctx.setLineDash([5, 7]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // ── Label (Icon + Name + Radius-Info) ─────────────────────────────────
+      const labelR = Math.max(screenR, screenR2);
+      if (labelR > 20) {
+        ctx.font = `${isActive ? 11 : 10}px 'Share Tech Mono', monospace`;
         ctx.textAlign = 'center';
-        ctx.fillText(q.icon + ' ' + q.name, bx, by - screenR - 8);
+        ctx.fillStyle = col + (isActive ? 'ee' : '99');
+        ctx.fillText(q.icon + ' ' + q.name, bx, by - labelR - 8);
+        if (isActive && screenR > 5) {
+          ctx.font = "9px 'Share Tech Mono', monospace";
+          ctx.fillStyle = col + '77';
+          ctx.fillText('r ' + fmtKm(q.radius), bx, by - labelR - 20);
+        }
       }
     });
   }
